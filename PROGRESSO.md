@@ -1,9 +1,18 @@
 # Progresso da Construção: Runtime LangGraph LUME
 
 ## Status Geral
-- **Fase Atual:** Fase F · Áudio
-- **Fase Anterior Concluída:** Fase E · Arte + Animação (4/4 testes passaram, total 24/24)
-- **Próximo Passo Exato:** Implementar os 5 agentes de Áudio (diretor de voz, narração por bloco com TTS/gravação humana, sound designer com SFX licenciados, supervisor musical com trilha e leitmotivs, mixador em -14 LUFS rigoroso).
+- **Fase Atual:** Fase G · Montagem + QA
+- **Fase Anterior Concluída:** Fase F · Áudio (4/4 testes passaram, total 28/28)
+- **Próximo Passo Exato:** Implementar os 4 agentes de Montagem (editor OTIO, grafismo, finalizador 4K, legendador) e os 6 agentes de QA (técnico, continuidade, fidelidade, marca, direitos, originalidade com retrabalho cirúrgico e Gate 3).
+
+---
+
+## Avaliação Fase F · Áudio
+- [x] Os 5 agentes de Áudio com prompts e ferramentas: OK
+- [x] Loudness normalizado em exatamente -14.0 LUFS (±1 LUFS): OK (`test_lufs_medido_dentro_da_tolerancia`)
+- [x] Todas as faixas (narração, SFX, trilha) com licença formal registrada: OK (`test_toda_faixa_tem_licenca_registrada_no_estado`)
+- [x] Transcrição ASR com divergência ≤ 2%: OK (`test_transcricao_asr_difere_do_roteiro_em_ate_2_porcento`)
+- [x] Diretor de voz com andamento entre 140 e 165 ppm: OK (`test_diretor_voz_andamento_entre_140_e_165_ppm`)
 
 ---
 

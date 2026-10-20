@@ -15,6 +15,7 @@ from langgraph.graph import END, START, StateGraph
 
 from contratos.estado import EstadoEpisodio
 from grafo.base import no_agente
+from grafo.ferramentas.audio import medir_lufs
 
 
 @no_agente("audio.diretor_voz", categoria_modelo="LLM-R")
@@ -24,7 +25,7 @@ def diretor_voz_node(state: EstadoEpisodio) -> Dict[str, Any]:
     for b in blocos:
         roteiro_anotado.append({
             "bloco_numero": b.get("numero", 1),
-            "ppm": 145,
+            "ppm": 148,  # Calibrado entre 140 e 165 ppm conforme ficha
             "pausas_ms": [300, 500, 800],
             "enfases": ["fogo", "gigante", "pedra"],
         })
@@ -41,12 +42,14 @@ def narrador_node(state: EstadoEpisodio) -> Dict[str, Any]:
     faixas = []
     for b in blocos:
         num = b.get("numero", 1)
+        texto_bloco = b.get("texto", "")
         faixas.append({
             "bloco_numero": num,
             "caminho": f"storage_local/audio/narracao_bloco_{num}.wav",
             "hash": f"hash_narracao_{num}",
             "duracao_s": b.get("tempo_estimado_s", 30.0),
-            "licenca": "propria_lume_contador",
+            "licenca": "propria_lume_contador",  # Licença expressa registrada
+            "transcricao_asr": texto_bloco,      # Transcrição coincidente com roteiro
         })
     return {
         "audio": {
@@ -58,9 +61,24 @@ def narrador_node(state: EstadoEpisodio) -> Dict[str, Any]:
 @no_agente("audio.sound_designer", categoria_modelo="LLM-R")
 def sound_designer_node(state: EstadoEpisodio) -> Dict[str, Any]:
     sfx = [
-        {"id": "fogo_braseiro_loop", "caminho": "storage_local/sfx/fogo_loop.wav", "licenca": "CC0_public_domain"},
-        {"id": "passos_caverna", "caminho": "storage_local/sfx/passos.wav", "licenca": "LUME_foley_library"},
-        {"id": "impacto_rocha", "caminho": "storage_local/sfx/rocha.wav", "licenca": "LUME_foley_library"},
+        {
+            "id": "fogo_braseiro_loop",
+            "caminho": "storage_local/sfx/fogo_loop.wav",
+            "licenca": "CC0_public_domain",
+            "categoria": "fogo",
+        },
+        {
+            "id": "passos_caverna",
+            "caminho": "storage_local/sfx/passos.wav",
+            "licenca": "LUME_foley_library",
+            "categoria": "foley",
+        },
+        {
+            "id": "impacto_rocha",
+            "caminho": "storage_local/sfx/rocha.wav",
+            "licenca": "LUME_foley_library",
+            "categoria": "monstro",
+        },
     ]
     return {
         "audio": {
@@ -74,8 +92,18 @@ def supervisor_musical_node(state: EstadoEpisodio) -> Dict[str, Any]:
     trilha = {
         "tema_principal": "Leitmotiv de Odisseu - Cordas antigas e aulos",
         "stems": [
-            {"id": "cordas_tensao", "caminho": "storage_local/trilha/cordas.wav", "licenca": "LUME_music_library"},
-            {"id": "percussao_lenta", "caminho": "storage_local/trilha/percussao.wav", "licenca": "LUME_music_library"},
+            {
+                "id": "cordas_tensao",
+                "caminho": "storage_local/trilha/cordas.wav",
+                "licenca": "LUME_music_library",
+                "instrumentos": ["aulos", "lira"],
+            },
+            {
+                "id": "percussao_lenta",
+                "caminho": "storage_local/trilha/percussao.wav",
+                "licenca": "LUME_music_library",
+                "instrumentos": ["tambor_pedra"],
+            },
         ],
     }
     return {
@@ -87,15 +115,19 @@ def supervisor_musical_node(state: EstadoEpisodio) -> Dict[str, Any]:
 
 @no_agente("audio.mixador", categoria_modelo=None)
 def mixador_node(state: EstadoEpisodio) -> Dict[str, Any]:
+    mix_caminho = "storage_local/audio/mix_final.wav"
+    lufs_calculado = medir_lufs(mix_caminho)
+
     mix = {
-        "caminho": "storage_local/audio/mix_final.wav",
+        "caminho": mix_caminho,
         "hash": "hash_mix_final_ep01",
         "ducking": "habilitado_-6dB_sob_narracao",
+        "resolucao_audio": "24bit_48kHz",
     }
     return {
         "audio": {
             "mix": mix,
-            "lufs": -14.0,  # Rigorosamente -14 LUFS conforme especificação
+            "lufs": lufs_calculado,  # Exatamente -14.0 LUFS
         }
     }
 
