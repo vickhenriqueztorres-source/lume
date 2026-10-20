@@ -1,0 +1,58 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	showrunner_inicio(showrunner_inicio)
+	showrunner_monitor(showrunner_monitor)
+	depto_pesquisa(depto_pesquisa)
+	depto_roteiro(depto_roteiro)
+	depto_direcao(depto_direcao)
+	depto_arte(depto_arte)
+	depto_audio(depto_audio)
+	depto_animacao(depto_animacao)
+	depto_montagem(depto_montagem)
+	depto_embalagem(depto_embalagem)
+	depto_qa(depto_qa)
+	depto_publicacao(depto_publicacao)
+	gate_1_roteiro(gate_1_roteiro)
+	gate_2_storyboard(gate_2_storyboard)
+	gate_3_corte_final(gate_3_corte_final)
+	gate_4_embalagem(gate_4_embalagem)
+	gate_5_publicacao(gate_5_publicacao)
+	fork_producao(fork_producao)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> showrunner_inicio;
+	depto_animacao --> depto_montagem;
+	depto_arte --> depto_animacao;
+	depto_audio --> depto_montagem;
+	depto_direcao --> gate_2_storyboard;
+	depto_embalagem --> gate_4_embalagem;
+	depto_montagem --> depto_qa;
+	depto_pesquisa --> depto_roteiro;
+	depto_publicacao --> showrunner_monitor;
+	depto_qa -.-> depto_animacao;
+	depto_qa -.-> depto_audio;
+	depto_qa -.-> depto_direcao;
+	depto_qa -.-> depto_montagem;
+	depto_qa -.-> depto_roteiro;
+	depto_qa -.-> gate_3_corte_final;
+	depto_roteiro --> gate_1_roteiro;
+	fork_producao --> depto_arte;
+	fork_producao --> depto_audio;
+	gate_1_roteiro -.-> depto_direcao;
+	gate_1_roteiro -.-> depto_roteiro;
+	gate_2_storyboard -.-> depto_direcao;
+	gate_2_storyboard -.-> fork_producao;
+	gate_3_corte_final -.-> depto_embalagem;
+	gate_3_corte_final -.-> depto_montagem;
+	gate_4_embalagem -.-> depto_embalagem;
+	gate_4_embalagem -.-> gate_5_publicacao;
+	gate_5_publicacao --> depto_publicacao;
+	showrunner_inicio --> depto_pesquisa;
+	showrunner_monitor --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

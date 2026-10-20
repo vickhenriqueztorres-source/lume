@@ -1,9 +1,18 @@
 # Progresso da Construção: Runtime LangGraph LUME
 
 ## Status Geral
-- **Fase Atual:** Fase B · Esqueleto Completo
-- **Fase Anterior Concluída:** Fase A · Contratos (7/7 testes passaram)
-- **Próximo Passo Exato:** Implementar o esqueleto completo do Showrunner + 10 subgrafos compilados + os 48 nós como stubs válidos, gates com `interrupt`, `Send` nos departamentos paralelos/map-reduce, checkpointer e teste end-to-end com retomada após gate num processo novo.
+- **Fase Atual:** Fase C · Pesquisa + Roteiro + Gate 1
+- **Fase Anterior Concluída:** Fase B · Esqueleto Completo (4/4 testes de integração passaram, total 11/11)
+- **Próximo Passo Exato:** Implementar os 4 agentes de Pesquisa e os 5 de Roteiro de verdade com prompts versionados em `prompts/`, wrapper de modelos determinísticos, validação de regras canônicas (reprovação de gírias, fatos inventados e gancho > 45s) e ciclo de revisão com até 3 voltas.
+
+---
+
+## Avaliação Fase B · Esqueleto Completo
+- [x] Showrunner + 10 subgrafos + os 48 nós como stubs válidos: OK
+- [x] Gates com `interrupt` real e retomada via `Command(resume=...)`: OK (`test_execucao_ponta_a_ponta_com_gates_simulados`)
+- [x] Retomada num processo novo com checkpointer persistente SQLite: OK (`test_retomada_processo_novo_com_sqlite_e_idempotencia`)
+- [x] Retrabalho cirúrgico do QA: OK (`test_qa_reprovado_volta_para_departamento_exato`)
+- [x] Diagrama Mermaid compilado: OK (`docs/referencias/grafo-compilado.mmd`, `test_diagrama_mermaid_compilado_existe`)
 
 ---
 

@@ -26,10 +26,27 @@ def deep_merge_dict(a: Optional[Dict[str, Any]], b: Optional[Dict[str, Any]]) ->
 
 
 def append_list_reducer(a: Optional[List[Any]], b: Optional[List[Any]]) -> List[Any]:
-    """Reducer inegociável de append-only para listas que nunca sobrescrevem."""
+    """Reducer inegociável de append-only para listas que nunca sobrescrevem e previnem eco de subgrafos."""
     lista_a = list(a or [])
     lista_b = list(b or [])
-    return lista_a + lista_b
+    if not lista_b:
+        return lista_a
+    if not lista_a:
+        return lista_b
+    if lista_a == lista_b:
+        return lista_a
+    # Se lista_b for extensão direta de lista_a (subgrafo preservou a lista e adicionou itens ao final)
+    if len(lista_b) > len(lista_a) and lista_b[:len(lista_a)] == lista_a:
+        return lista_b
+    # Se lista_a for extensão de lista_b
+    if len(lista_a) > len(lista_b) and lista_a[:len(lista_b)] == lista_b:
+        return lista_a
+    # Acrescenta apenas os novos elementos
+    novos = []
+    for item in lista_b:
+        if item not in lista_a and item not in novos:
+            novos.append(item)
+    return lista_a + novos
 
 
 # ============================================================================
