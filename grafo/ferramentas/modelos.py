@@ -205,9 +205,17 @@ class ModeloFakeResposta:
         raise ValueError(f"Schema sem mock configurado em ModeloFakeResposta: {nome_schema}")
 
 
-def obter_cliente_modelo(categoria: str) -> ModeloFakeResposta:
+def obter_cliente_modelo(categoria: str) -> Any:
     """Factory de cliente de modelo por categoria (LLM-R, LLM-V, IMG, TTS, ASR)."""
     config = carregar_config_modelos()
     cat_config = config.get("categorias", {}).get(categoria, {})
-    # Por padrão, utiliza o fake determinístico
+    provedor = cat_config.get("provedor", "")
+    mock_mode = cat_config.get("mock_mode", True)
+
+    if provedor in ("CLI_CODEX", "CLI_ANTIGRAVITY") and not mock_mode:
+        from grafo.ferramentas.cli_llm import CodexCLIClient
+        modelo = cat_config.get("modelo", "gpt-5.6-terra")
+        return CodexCLIClient(modelo=modelo, mock_fallback=True)
+
+    # Por padrão ou em modo de testes, utiliza o fake determinístico
     return ModeloFakeResposta(categoria=categoria)
