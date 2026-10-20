@@ -1,4 +1,4 @@
-.PHONY: test fumaca grafo install
+.PHONY: test fumaca grafo install firefly-chrome
 
 PYTHON ?= python
 
@@ -10,3 +10,6 @@ fumaca:
 
 grafo:
 	$(PYTHON) -m grafo.gerar_diagrama
+
+firefly-chrome:
+	$(PYTHON) abrir_chrome_firefly.py
