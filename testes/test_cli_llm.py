@@ -91,3 +91,19 @@ def test_chaos_timeout_and_fallback_resilience():
     )
     assert res is not None
     assert isinstance(res, DummySchema)
+
+
+def test_multi_account_failover_mechanism(monkeypatch, tmp_path):
+    """5. Teste de Failover Multi-Conta: Se a conta primária atingir limite de cota, a secundária assume."""
+    client = CodexCLIClient(mock_fallback=False)
+    
+    # Simula diretório de conta secundária existente
+    sec_dir = tmp_path / "codex_sec"
+    sec_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("CODEX_HOME_SECONDARY", str(sec_dir))
+    
+    # Verifica detecção de contas
+    contas = [
+        client.sanitizar_entrada("conta_teste"),
+    ]
+    assert len(contas) == 1

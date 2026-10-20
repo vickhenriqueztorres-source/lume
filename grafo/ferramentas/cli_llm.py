@@ -99,50 +99,82 @@ class CodexCLIClient:
             raise
 
     def _executar_cli(self, prompt: str) -> str:
-        """Executa o processo de CLI passando o prompt via stdin de forma segura."""
+        """Executa o processo de CLI passando o prompt via stdin com failover automático entre contas."""
         with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".json") as tmp_out:
             tmp_out_path = tmp_out.name
 
+        # Contas configuradas para alternância automática em caso de esgotamento de cota
+        home_principal = os.getenv("CODEX_HOME") or os.path.expanduser("~/.codex")
+        home_secundaria = os.getenv("CODEX_HOME_SECONDARY") or os.path.expanduser("~/.codex_secundaria")
+
+        contas = [home_principal]
+        if os.path.exists(home_secundaria) and home_secundaria not in contas:
+            contas.append(home_secundaria)
+
+        ultimo_erro = None
+
         try:
-            # Comando não-interativo com captura em arquivo
-            args = [
-                self.cli_command,
-                "exec",
-                "--skip-git-repo-check",
-                "--ephemeral",
-                "-m",
-                self.modelo,
-                "-o",
-                tmp_out_path,
-                "-",
-            ]
+            for idx, codex_home in enumerate(contas):
+                args = [
+                    self.cli_command,
+                    "exec",
+                    "--skip-git-repo-check",
+                    "--ephemeral",
+                    "-m",
+                    self.modelo,
+                    "-o",
+                    tmp_out_path,
+                    "-",
+                ]
 
-            process = subprocess.run(
-                args,
-                input=prompt,
-                text=True,
-                capture_output=True,
-                timeout=self.timeout_seconds,
-            )
+                env_cmd = os.environ.copy()
+                env_cmd["CODEX_HOME"] = codex_home
 
-            # Prioriza a leitura do arquivo de saída last-message
-            saida = ""
-            if os.path.exists(tmp_out_path):
-                with open(tmp_out_path, "r", encoding="utf-8", errors="replace") as f:
-                    saida = f.read().strip()
-
-            if not saida:
-                saida = (process.stdout or "").strip()
-
-            if process.returncode != 0 and not saida:
-                raise CLIExecutionError(
-                    f"CLI retornou erro {process.returncode}: {process.stderr[:400]}"
+                process = subprocess.run(
+                    args,
+                    input=prompt,
+                    text=True,
+                    capture_output=True,
+                    timeout=self.timeout_seconds,
+                    env=env_cmd,
                 )
 
-            if not saida:
-                raise CLIExecutionError("CLI executou com sucesso mas nenhuma saída foi retornada.")
+                # Prioriza a leitura do arquivo de saída last-message
+                saida = ""
+                if os.path.exists(tmp_out_path):
+                    with open(tmp_out_path, "r", encoding="utf-8", errors="replace") as f:
+                        saida = f.read().strip()
 
-            return saida
+                if not saida:
+                    saida = (process.stdout or "").strip()
+
+                # Detecta erro de limite de taxa / cota esgotada
+                stderr_lower = (process.stderr or "").lower()
+                stdout_lower = (process.stdout or "").lower()
+                erros_cota = ("rate_limit", "quota", "usage_limit", "429", "insufficient", "capacity", "exhausted")
+
+                if any(k in stderr_lower or k in stdout_lower for k in erros_cota):
+                    if idx < len(contas) - 1:
+                        proxima_conta = contas[idx + 1]
+                        LOGGER.warning(
+                            f"[CLI_LLM] Conta '{codex_home}' atingiu limite/cota. "
+                            f"Alternando automaticamente para a conta de backup '{proxima_conta}'."
+                        )
+                        continue
+
+                if process.returncode != 0 and not saida:
+                    ultimo_erro = f"CLI retornou erro {process.returncode}: {process.stderr[:400]}"
+                    if idx < len(contas) - 1:
+                        continue
+                    raise CLIExecutionError(ultimo_erro)
+
+                if saida:
+                    return saida
+
+            if ultimo_erro:
+                raise CLIExecutionError(ultimo_erro)
+            raise CLIExecutionError("CLI executou mas nenhuma saída válida foi retornada pelas contas configuradas.")
+
         except subprocess.TimeoutExpired as e:
             raise CLITimeoutError(f"CLI excedeu o timeout de {self.timeout_seconds}s.") from e
         except FileNotFoundError as e:
