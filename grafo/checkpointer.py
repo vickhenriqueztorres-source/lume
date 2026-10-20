@@ -29,6 +29,12 @@ def obter_store() -> BaseStore:
     return _STORE_SINGLETON
 
 
+def limpar_store_teste() -> None:
+    """Limpa o Store para isolamento entre execuções de teste."""
+    global _STORE_SINGLETON
+    _STORE_SINGLETON = InMemoryStore()
+
+
 def obter_checkpointer(
     tipo: Optional[str] = None,
     sqlite_path: str = "storage_local/checkpoints.db",

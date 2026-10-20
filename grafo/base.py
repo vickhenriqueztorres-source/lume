@@ -36,8 +36,13 @@ def registrar_operacao_efeito_colateral(chave_op: str) -> bool:
 
 
 def limpar_operacoes_teste() -> None:
-    """Auxiliar para testes."""
+    """Auxiliar para testes: limpa chaves de idempotência e reinicializa Store isolada."""
     _OPERACOES_EXECUTADAS.clear()
+    try:
+        from grafo.checkpointer import limpar_store_teste
+        limpar_store_teste()
+    except Exception:
+        pass
 
 
 def no_agente(

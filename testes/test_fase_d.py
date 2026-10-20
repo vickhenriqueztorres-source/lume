@@ -75,6 +75,7 @@ def test_supervisor_direcao_tela_corrige_caso_errado_plantado():
 
 def test_elenco_marca_novas_e_reaproveitadas():
     """Garante que o elenco distingue marionetes da biblioteca (reaproveitadas) e novas a criar."""
+    limpar_operacoes_teste()
     subgrafo = construir_subgrafo_direcao()
     estado = criar_estado_inicial("ep_odisseia", "A Odisseia", "Polifemo")
 
