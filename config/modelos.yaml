@@ -1,0 +1,35 @@
+# Mapeamento de Categorias de Modelos para Provedores (Doc 05 §3 e Regra 8)
+# Nenhum nó acessa nomes de modelos ou provedores diretamente no código.
+
+categorias:
+  LLM-R:
+    provedor: "A_DEFINIR"
+    modelo: "fake-deterministic-llm-r"
+    temperatura: 0.2
+    max_tokens: 4096
+    mock_mode: true
+
+  LLM-V:
+    provedor: "A_DEFINIR"
+    modelo: "fake-deterministic-llm-v"
+    temperatura: 0.1
+    max_tokens: 4096
+    mock_mode: true
+
+  IMG:
+    provedor: "A_DEFINIR"
+    modelo: "fake-deterministic-img"
+    tamanho: "1920x1080"
+    mock_mode: true
+
+  TTS:
+    provedor: "A_DEFINIR"
+    modelo: "fake-deterministic-tts"
+    voz: "contador-pt-br"
+    mock_mode: true
+
+  ASR:
+    provedor: "A_DEFINIR"
+    modelo: "fake-deterministic-asr"
+    idioma: "pt"
+    mock_mode: true

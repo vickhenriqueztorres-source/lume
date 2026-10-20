@@ -1,0 +1,25 @@
+# Limites Operacionais e Tetos do Grafo (Doc 05 §4 e §6)
+
+orcamento:
+  teto_episodio_usd: 150.0
+  alerta_usd: 120.0
+
+voltas_maximas:
+  roteiro: 3
+  revisor_plano: 2
+  avaliador_feed: 2
+
+concorrencia:
+  max_concurrency_render: 5
+  max_concurrency_arte: 4
+  max_concurrency_audio: 4
+  max_concurrency_qa: 6
+
+storage:
+  tipo: "local" # local ou s3
+  base_dir: "storage_local"
+
+checkpointer:
+  tipo: "sqlite" # postgres, sqlite, ou memory
+  sqlite_path: "storage_local/checkpoints.db"
+  postgres_uri: "postgresql://postgres:postgres@localhost:5432/lume"

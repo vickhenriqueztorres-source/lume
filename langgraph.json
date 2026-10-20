@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/langchain-ai/langgraph/main/packages/langgraph-cli/langgraph_cli/schemas/langgraph.json",
+  "dependencies": [
+    "."
+  ],
+  "graphs": {
+    "showrunner": "./grafo/showrunner/grafo.py:grafo_showrunner"
+  },
+  "env": ".env"
+}
