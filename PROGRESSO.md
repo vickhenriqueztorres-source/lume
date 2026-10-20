@@ -1,9 +1,19 @@
 # Progresso da Construção: Runtime LangGraph LUME
 
 ## Status Geral
-- **Fase Atual:** Fase H · Embalagem + Publicação
-- **Fase Anterior Concluída:** Fase G · Montagem + QA (4/4 testes passaram, total 32/32)
-- **Próximo Passo Exato:** Implementar os 5 agentes de Embalagem (titulista ≤ 60 chars, designer de thumbnail layouts A/B/C, avaliador de feed a 120px, redator de metadados, cortador de Shorts), Gate 4, e Publicador sempre em modo privado com Gate 5.
+- **Fase Atual:** Fase I · Memória e Aprendizado
+- **Fase Anterior Concluída:** Fase H · Embalagem + Publicação (4/4 testes passaram, total 36/36)
+- **Próximo Passo Exato:** Implementar e validar a retenção de lições e aprendizado inter-episódios (Analista de desempenho e Curador de memória na Store, e Showrunner injetando em `episodio.licoes_aplicadas` no episódio seguinte).
+
+---
+
+## Avaliação Fase H · Embalagem + Publicação
+- [x] Os 5 agentes de Embalagem e Publicador com prompts e ferramentas: OK
+- [x] 3 títulos com ≤ 60 caracteres cada: OK (`test_tres_titulos_menores_ou_iguais_a_60_caracteres`)
+- [x] 3 thumbnails nos layouts A, B, C com regras da identidade visual: OK (`test_tres_thumbs_layouts_a_b_c_com_regras_visuais`)
+- [x] Avaliador de feed mede legibilidade em 120 px e ranqueia: OK (`test_avaliador_feed_ranqueia_em_120px`)
+- [x] Upload privado garantido (modo estritamente privado): OK (`test_publicador_upload_estritamente_privado_e_idempotencia`)
+- [x] Idempotência do publicador comprovada (reexecução evitada): OK (`test_publicador_upload_estritamente_privado_e_idempotencia`)
 
 ---
 

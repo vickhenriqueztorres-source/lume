@@ -14,6 +14,7 @@ from langgraph.graph import END, START, StateGraph
 from contratos.estado import EstadoEpisodio
 from grafo.base import gerar_chave_idempotencia, no_agente, registrar_operacao_efeito_colateral
 from grafo.checkpointer import obter_store
+from grafo.ferramentas.youtube import obter_youtube_publisher
 
 
 @no_agente("publicacao.publicador", categoria_modelo=None)
@@ -21,31 +22,40 @@ def publicador_node(state: EstadoEpisodio) -> Dict[str, Any]:
     ep_id = state.get("episodio", {}).get("id", "ep01")
     chave_op = gerar_chave_idempotencia("publicacao.publicador", ep_id)
 
-    # 1. Checa idempotência: impede re-upload ao retomar após interrupção
+    # 1. Checa idempotência antes de disparar o efeito colateral (Regra Inegociável 7)
     ja_executado = registrar_operacao_efeito_colateral(chave_op)
-
     publicacao_existente = state.get("episodio", {}).get("publicacao")
+
     if ja_executado and publicacao_existente:
         return {
             "episodio": {
-                "publicacao": publicacao_existente,
+                "publicacao": {
+                    **publicacao_existente,
+                    "reexecucao_evitada": True,
+                },
                 "status": "publicado_privado",
             }
         }
 
-    # 2. Upload estritamente em modo privado (Regra Inegociável 10)
-    dados_publicacao = {
-        "video_id": f"yt_{ep_id}_privado",
-        "status": "privado",  # NUNCA público fora do Gate 5
-        "upload_url": f"https://youtube.com/watch?v=yt_{ep_id}_privado",
-        "chave_idempotencia": chave_op,
-        "titulo": state.get("embalagem", {}).get("titulos", ["Episódio LUME"])[0],
-        "modo": "privado_obrigatorio",
-    }
+    # 2. Executa upload privado via YouTubePublisher
+    master_caminho = state.get("master", {}).get("arquivo", {}).get("caminho", "storage_local/master/video.mp4")
+    titulos = state.get("embalagem", {}).get("titulos", ["Episódio LUME"])
+    titulo = titulos[0] if titulos else "Episódio LUME"
+    descricao = state.get("embalagem", {}).get("metadados", {}).get("descricao", "")
+    tags = state.get("embalagem", {}).get("metadados", {}).get("tags", [])
+
+    publisher = obter_youtube_publisher()
+    dados_upload = publisher.upload_video_privado(
+        caminho_video=master_caminho,
+        titulo=titulo,
+        descricao=descricao,
+        tags=tags,
+        chave_idempotencia=chave_op,
+    )
 
     return {
         "episodio": {
-            "publicacao": dados_publicacao,
+            "publicacao": dados_upload,
             "status": "publicado_privado",
         }
     }
