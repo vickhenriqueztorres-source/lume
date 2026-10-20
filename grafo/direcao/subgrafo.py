@@ -238,9 +238,19 @@ def diretor_arte_node(state: EstadoEpisodio) -> Dict[str, Any]:
 def storyboarder_node(state: EstadoEpisodio) -> Dict[str, Any]:
     planos = list(state.get("decupagem", {}).get("planos", []))
     duracao_total = sum(p.get("duracao_s", 5.0) for p in planos)
+    from grafo.ferramentas.start_frame import StartFrameGenerator
+    generator = StartFrameGenerator()
 
     for p in planos:
-        p["storyboard"] = f"storage_local/storyboard/{p.get('id')}.png"
+        p_id = p.get("id")
+        frame_path = generator.gerar_start_frame(
+            plano_id=p_id,
+            prompt=p.get("mundo", "parede"),
+            proporcao=p.get("proporcao", "16:9"),
+            nivel_fogo=p.get("fogo", {}).get("nivel", 2),
+            direcao_olhar=p.get("direcao_olhar", "D"),
+        )
+        p["storyboard"] = str(frame_path)
 
     animatic = {
         "caminho": "storage_local/animatic/ep01_animatic.mp4",
