@@ -88,16 +88,16 @@ def gerente_render_node(state: EstadoEpisodio) -> Dict[str, Any]:
         if p_id not in assets_planos:
             assets_planos[p_id] = {}
 
-        render_info = assets_planos[p_id].get("render", {})
+        render_info = dict(assets_planos[p_id].get("render", {}))
         tentativas = render_info.get("tentativas", 0) + 1
-
-        assets_planos[p_id]["render"] = {
+        render_info.update({
             "caminho": video_caminho,
             "hash": hash_visual,
             "status": "concluido",
             "tentativas": tentativas,
             "cache_hit": cache_hit,
-        }
+        })
+        assets_planos[p_id]["render"] = render_info
 
     return {
         "assets": {

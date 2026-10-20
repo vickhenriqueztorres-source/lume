@@ -1,9 +1,19 @@
 # Progresso da Construção: Runtime LangGraph LUME
 
 ## Status Geral
-- **Fase Atual:** Fase E · Arte + Animação
-- **Fase Anterior Concluída:** Fase D · Direção + Storyboard + Gate 2 (4/4 testes passaram, total 20/20)
-- **Próximo Passo Exato:** Implementar os 5 agentes de Arte e os 5 de Animação com processamento por item novo e por plano (`Send`/map-reduce), cache de render por hash visual, mock de Blender headless/potrace e escalada para fila humana na 3ª falha.
+- **Fase Atual:** Fase F · Áudio
+- **Fase Anterior Concluída:** Fase E · Arte + Animação (4/4 testes passaram, total 24/24)
+- **Próximo Passo Exato:** Implementar os 5 agentes de Áudio (diretor de voz, narração por bloco com TTS/gravação humana, sound designer com SFX licenciados, supervisor musical com trilha e leitmotivs, mixador em -14 LUFS rigoroso).
+
+---
+
+## Avaliação Fase E · Arte + Animação
+- [x] Os 5 agentes de Arte e 5 de Animação com ferramentas e cache: OK
+- [x] 1 plano renderizado no template Blender headless (mock determinístico): OK (`test_render_um_plano_blender`)
+- [x] Vetorização de silhuetas com Potrace (preto absoluto #16110D): OK (`test_vetorizacao_potrace`)
+- [x] 10 planos renderizados em lote com concorrência limitada: OK (`test_dez_planos_concorrencia_e_cache_por_hash`)
+- [x] Cache por hash visual do contrato do plano (cache_hit=True): OK (`test_dez_planos_concorrencia_e_cache_por_hash`)
+- [x] Terceira falha de plano escalada sem bloquear outros: OK (`test_terceira_falha_de_plano_escala_sem_travar_outros`)
 
 ---
 
