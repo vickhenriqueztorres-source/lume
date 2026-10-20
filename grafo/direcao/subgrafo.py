@@ -22,6 +22,13 @@ from grafo.checkpointer import obter_store
 @no_agente("direcao.diretor_decupagem", categoria_modelo="LLM-R")
 def diretor_decupagem_node(state: EstadoEpisodio) -> Dict[str, Any]:
     blocos = state.get("roteiro", {}).get("blocos", [])
+    planos_existentes = state.get("decupagem", {}).get("planos")
+    if planos_existentes:
+        return {
+            "decupagem": {
+                "planos": planos_existentes,
+            }
+        }
 
     # Cria planos decupados rigorosamente conformes com o contrato do Doc 05 §5
     planos: List[Dict[str, Any]] = [

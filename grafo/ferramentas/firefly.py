@@ -13,6 +13,8 @@ from __future__ import annotations
 import logging
 import os
 import re
+import shutil
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -105,7 +107,31 @@ class FireflyEngine:
     def _simulate_generation(self, frame_path: Path, out_path: Path, duration: float) -> None:
         """Gera um clipe MP4 ISO padrão (ftyp isom/mp42 + bloco mdat) de forma atômica."""
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        # Cabeçalho MP4 ISO padrão válido
+
+        ffmpeg_bin = shutil.which("ffmpeg")
+        if ffmpeg_bin and frame_path.exists() and frame_path.stat().st_size > 1000:
+            tmp_path = out_path.with_suffix(".tmp.mp4")
+            cmd = [
+                ffmpeg_bin, "-y",
+                "-loop", "1",
+                "-i", str(frame_path),
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-t", str(duration),
+                "-pix_fmt", "yuv420p",
+                "-r", "24",
+                "-vf", "scale=3840:2160",
+                str(tmp_path),
+            ]
+            try:
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+                if res.returncode == 0 and tmp_path.exists() and tmp_path.stat().st_size > 500:
+                    tmp_path.replace(out_path)
+                    return
+            except Exception:
+                pass
+
+        # Cabeçalho MP4 ISO padrão válido (fallback determinístico para testes unitários)
         mp4_bytes = (
             b"\x00\x00\x00\x1cftypisom\x00\x00\x02\x00isomiso2mp41"
             b"\x00\x00\x00\x08free"
