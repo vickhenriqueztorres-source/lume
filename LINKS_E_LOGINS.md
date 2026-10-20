@@ -19,11 +19,18 @@ Arquivo de referência local permanente para acesso, credenciais, autenticação
 ## 2. Comandos de Autenticação das CLIs Locais
 
 ### 2.1. Codex CLI (`codex`)
-A CLI já está configurada para operar com `gpt-5.6-terra` sem custo de API avulsa.
+A CLI já está configurada para operar com `gpt-5.6-terra` sem custo de API avulsa, com redundância multi-conta ativa:
+- **Conta 1 (Principal):** Armazenada em `~/.codex` (Ativa).
+- **Conta 2 (Backup / Failover):** Armazenada em `~/.codex_secundaria` (Ativa).
+- *Se a Conta 1 atingir limites de cota ou taxa (HTTP 429), o runtime alterna automaticamente para a Conta 2.*
 
-- **Conferir status da conexão:**
+- **Conferir status da conta principal:**
   ```bash
   codex login status
+  ```
+- **Conferir status da conta secundária:**
+  ```powershell
+  $env:CODEX_HOME="C:\Users\brend\.codex_secundaria"; codex login status
   ```
 - **Login via Navegador (Padrão ChatGPT):**
   ```bash
