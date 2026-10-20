@@ -2,113 +2,180 @@
 
 Implementa o ciclo autor ↔ revisores (máximo de 3 voltas):
 Arquiteto de Estrutura -> Roteirista -> (Retenção || Fidelidade || Tom) -> Roteador de Revisão.
+Com checagens estritas em código de:
+- Gancho inicial ≤ 45s (Editor de Retenção)
+- Fatos estritamente verificados em pesquisa.fatos (Revisor de Fidelidade)
+- Proibição de gírias e coloquialismos no tom do Contador (Revisor de Tom)
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, Literal
+import re
+from typing import Any, Dict, List, Literal
 from langgraph.graph import END, START, StateGraph
 
+from contratos.agentes import ArquitetoEstruturaOutput, RoteiristaOutput
 from contratos.estado import EstadoEpisodio
 from grafo.base import no_agente
+from grafo.ferramentas.modelos import obter_cliente_modelo
+
+
+GIRIAS_PROIBIDAS = [
+    "e aí galera",
+    "mano",
+    "tipo assim",
+    "você não vai acreditar",
+    "curte e compartilha",
+    "doidão",
+    "top 10",
+    "chocante",
+    "bizarro",
+    "sensacional",
+]
 
 
 @no_agente("roteiro.arquiteto_estrutura", categoria_modelo="LLM-R")
 def arquiteto_estrutura_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    esqueleto = {
-        "atos": [
-            {"ato": 1, "titulo": "A Armadilha na Caverna", "tempo_alvo_s": 360.0},
-            {"ato": 2, "titulo": "O Vinho e a Astúcia de Ninguém", "tempo_alvo_s": 420.0},
-            {"ato": 3, "titulo": "A Estaca no Olho e a Fuga", "tempo_alvo_s": 400.0},
-            {"ato": 4, "titulo": "O Orgulho e a Maldição de Poseidon", "tempo_alvo_s": 260.0},
-        ],
-        "tempo_total_previsto_s": 1440.0,
-    }
+    cliente = obter_cliente_modelo("LLM-R")
+    saida = cliente.gerar_estruturado(
+        schema=ArquitetoEstruturaOutput,
+        prompt_sistema="Construa o esqueleto dramático em 4 atos para ~24 minutos.",
+        entradas={"episodio": state.get("episodio"), "pesquisa": state.get("pesquisa")},
+    )
     return {
         "roteiro": {
-            "esqueleto": esqueleto,
+            "esqueleto": saida.model_dump(),
         }
     }
 
 
 @no_agente("roteiro.roteirista", categoria_modelo="LLM-R")
 def roteirista_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    voltas = state.get("roteiro", {}).get("voltas", 0)
+    versoes_anteriores = state.get("roteiro", {}).get("versoes", [])
+    voltas = len(versoes_anteriores)
     versao = voltas + 1
 
-    blocos = [
-        {
-            "numero": 1,
-            "tempo_estimado_s": 35.0,
-            "texto": "O fogo ainda conta as mesmas histórias. Na caverna escura, o gigante fecha a entrada com a rocha que nenhum homem moveria.",
-            "marcacoes_cena": ["[CENA: MUNDO_CONTADOR]", "[CENA: PAREDE_CAVERNA]"],
-            "fatos_referenciados": ["fato_01"],
-            "canto_verso": "Canto IX, 216-243",
-        },
-        {
-            "numero": 2,
-            "tempo_estimado_s": 50.0,
-            "texto": "Odisseu não desembainha a espada de bronze. Se o monstro tombar morto agora, a saída continuará selada pela pedra.",
-            "marcacoes_cena": ["[CENA: PAREDE_SILHUETA_ODISSEU]"],
-            "fatos_referenciados": ["fato_01", "fato_02"],
-            "canto_verso": "Canto IX, 299-317",
-        },
-        {
-            "numero": 3,
-            "tempo_estimado_s": 55.0,
-            "texto": "Ele oferece a taça de vinho doce trazido de Ísmaro. 'Bebe, Polifemo. Pergunta meu nome? Ninguém me chama meu pai e minha mãe.'",
-            "marcacoes_cena": ["[CENA: PAREDE_TACA_FOGO]"],
-            "fatos_referenciados": ["fato_02"],
-            "canto_verso": "Canto IX, 345-370",
-        },
-    ]
+    # Só aplica o caso de teste forçado na primeira versão (versão 1)
+    forcar = state.get("roteiro", {}).get("_forcar_caso_teste") if voltas == 0 else None
 
-    versoes = state.get("roteiro", {}).get("versoes", [])
+    cliente = obter_cliente_modelo("LLM-R")
+    saida = cliente.gerar_estruturado(
+        schema=RoteiristaOutput,
+        prompt_sistema="Escreva o roteiro na voz do Contador, presente narrativo, sem gírias.",
+        entradas={"roteiro": state.get("roteiro"), "pesquisa": state.get("pesquisa")},
+        forcar_invalido=forcar,
+    )
+
+    blocos = [b.model_dump() for b in saida.blocos]
+    # Injeta fontes canônicas por bloco conforme canto/verso da pesquisa
+    fontes_pesquisa = state.get("pesquisa", {}).get("fontes", [])
+    canto_padrao = fontes_pesquisa[0].get("canto_verso", "Canto IX, 105-566") if fontes_pesquisa else "Canto IX, 105-566"
+
+    for b in blocos:
+        if not b.get("canto_verso"):
+            b["canto_verso"] = canto_padrao
+
     nova_versao_registro = {"versao": versao, "total_blocos": len(blocos)}
 
     return {
         "roteiro": {
             "blocos": blocos,
-            "versoes": versoes + [nova_versao_registro],
+            "versoes": versoes_anteriores + [nova_versao_registro],
+            "voltas": voltas,
         }
     }
 
 
 @no_agente("roteiro.editor_retencao", categoria_modelo="LLM-R")
 def editor_retencao_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    notas_existentes = state.get("roteiro", {}).get("notas", {})
+    blocos = state.get("roteiro", {}).get("blocos", [])
+    notas_retencao: List[str] = []
+
+    if blocos:
+        tempo_gancho = blocos[0].get("tempo_estimado_s", 0.0)
+        # Checagem objetiva: Gancho inicial deve ter ≤ 45 segundos
+        if tempo_gancho > 45.0:
+            notas_retencao.append(
+                f"[BLOQUEANTE] Gancho inicial excede 45 segundos (tempo: {tempo_gancho}s). Reprovado."
+            )
+        else:
+            notas_retencao.append(
+                f"[OK] Gancho inicial em {tempo_gancho}s (≤ 45s). Ritmo de abertura aprovado."
+            )
+    else:
+        notas_retencao.append("[BLOQUEANTE] Roteiro sem blocos de texto.")
+
+    notas_existentes = dict(state.get("roteiro", {}).get("notas", {}))
+    notas_existentes["retencao"] = notas_retencao
+
     return {
         "roteiro": {
-            "notas": {
-                **notas_existentes,
-                "retencao": ["Gancho inicial cumpre meta de tempo (< 45s). Open loops consistentes."],
-            }
+            "notas": notas_existentes,
         }
     }
 
 
 @no_agente("roteiro.revisor_fidelidade", categoria_modelo="LLM-R")
 def revisor_fidelidade_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    notas_existentes = state.get("roteiro", {}).get("notas", {})
+    blocos = state.get("roteiro", {}).get("blocos", [])
+    fatos_conhecidos = {f.get("id") for f in state.get("pesquisa", {}).get("fatos", [])}
+
+    notas_fidelidade: List[str] = []
+    tem_bloqueio = False
+
+    for b in blocos:
+        fatos_ref = b.get("fatos_referenciados", [])
+        if not fatos_ref:
+            notas_fidelidade.append(
+                f"[BLOQUEANTE] Bloco {b.get('numero')}: nenhuma frase pode passar sem fato correspondente verificado."
+            )
+            tem_bloqueio = True
+            continue
+
+        for f_id in fatos_ref:
+            if f_id not in fatos_conhecidos:
+                notas_fidelidade.append(
+                    f"[BLOQUEANTE] Bloco {b.get('numero')}: fato inventado ou não comprovado nas fontes ('{f_id}')."
+                )
+                tem_bloqueio = True
+
+    if not tem_bloqueio:
+        notas_fidelidade.append("[OK] Todas as afirmações vinculadas a fatos canônicos de Homero.")
+
+    notas_existentes = dict(state.get("roteiro", {}).get("notas", {}))
+    notas_existentes["fidelidade"] = notas_fidelidade
+
     return {
         "roteiro": {
-            "notas": {
-                **notas_existentes,
-                "fidelidade": ["Todos os blocos possuem fatos canônicos verificados correspondentes."],
-            }
+            "notas": notas_existentes,
         }
     }
 
 
 @no_agente("roteiro.revisor_tom", categoria_modelo="LLM-R")
 def revisor_tom_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    notas_existentes = state.get("roteiro", {}).get("notas", {})
+    blocos = state.get("roteiro", {}).get("blocos", [])
+    notas_tom: List[str] = []
+    tem_bloqueio = False
+
+    for b in blocos:
+        texto = b.get("texto", "").lower()
+        for giria in GIRIAS_PROIBIDAS:
+            if re.search(r"\b" + re.escape(giria) + r"\b", texto):
+                notas_tom.append(
+                    f"[BLOQUEANTE] Bloco {b.get('numero')}: tom informal / gíria proibida detectada ('{giria}')."
+                )
+                tem_bloqueio = True
+
+    if not tem_bloqueio:
+        notas_tom.append("[OK] Tom grave e solene do Contador preservado, sem gírias ou clichês.")
+
+    notas_existentes = dict(state.get("roteiro", {}).get("notas", {}))
+    notas_existentes["tom"] = notas_tom
+
     return {
         "roteiro": {
-            "notas": {
-                **notas_existentes,
-                "tom": ["Tom solene respeitado. Sem gírias, frases curtas no presente narrativo."],
-            }
+            "notas": notas_existentes,
         }
     }
 
@@ -120,13 +187,12 @@ def roteador_ciclo_roteiro(state: EstadoEpisodio) -> Literal["roteiro.roteirista
     notas = roteiro.get("notas", {})
 
     tem_bloqueio = any(
-        any("REPROVADO" in str(n).upper() or "BLOQUEANTE" in str(n).upper() for n in lista_notas)
+        any("[BLOQUEANTE]" in str(n) or "REPROVADO" in str(n).upper() for n in lista_notas)
         for lista_notas in notas.values()
         if isinstance(lista_notas, list)
     )
 
     if tem_bloqueio and voltas < 3:
-        # Incrementa contador de voltas e refaz
         return "roteiro.roteirista"
 
     return "__end__"
@@ -145,22 +211,12 @@ def construir_subgrafo_roteiro() -> StateGraph:
     builder.add_edge(START, "roteiro.arquiteto_estrutura")
     builder.add_edge("roteiro.arquiteto_estrutura", "roteiro.roteirista")
 
-    # Roteirista dispara os 3 revisores em paralelo
+    # Roteirista passa pelos 3 revisores
     builder.add_edge("roteiro.roteirista", "roteiro.editor_retencao")
-    builder.add_edge("roteiro.roteirista", "roteiro.revisor_fidelidade")
-    builder.add_edge("roteiro.roteirista", "roteiro.revisor_tom")
+    builder.add_edge("roteiro.editor_retencao", "roteiro.revisor_fidelidade")
+    builder.add_edge("roteiro.revisor_fidelidade", "roteiro.revisor_tom")
 
-    # Todos convergem para o roteador de ciclo
-    builder.add_conditional_edges(
-        "roteiro.editor_retencao",
-        roteador_ciclo_roteiro,
-        {"roteiro.roteirista": "roteiro.roteirista", "__end__": END},
-    )
-    builder.add_conditional_edges(
-        "roteiro.revisor_fidelidade",
-        roteador_ciclo_roteiro,
-        {"roteiro.roteirista": "roteiro.roteirista", "__end__": END},
-    )
+    # Roteador de ciclo avalia os 3 revisores juntos
     builder.add_conditional_edges(
         "roteiro.revisor_tom",
         roteador_ciclo_roteiro,

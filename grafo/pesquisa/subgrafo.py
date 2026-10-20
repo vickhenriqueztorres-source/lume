@@ -12,103 +12,75 @@ from __future__ import annotations
 from typing import Any, Dict
 from langgraph.graph import END, START, StateGraph
 
+from contratos.agentes import (
+    AnalistaDemandaOutput,
+    AnalistaReferenciaOutput,
+    PesquisadorFontesOutput,
+    VerificadorFatosOutput,
+)
 from contratos.estado import EstadoEpisodio
 from grafo.base import no_agente
+from grafo.ferramentas.modelos import obter_cliente_modelo
 
 
 @no_agente("pesquisa.pesquisador_fontes", categoria_modelo="LLM-R")
 def pesquisador_fontes_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    mito = state.get("episodio", {}).get("mito", "A Odisseia")
-    fontes = [
-        {
-            "canto_verso": "Canto IX, 105-566",
-            "obra": "Odisseia",
-            "autor": "Homero",
-            "texto_original": "Cíclope Polifemo e a fuga sob os carneiros.",
-            "traducao_pt": "Odisseu cega o Cíclope Polifemo com a estaca aquecida no fogo.",
-            "dominio_publico": True,
-            "url_ou_referencia": "Perseus Digital Library: Hom. Od. 9.105",
-        },
-        {
-            "canto_verso": "Canto XI, 1-640",
-            "obra": "Odisseia",
-            "autor": "Homero",
-            "texto_original": "Nekuia: invocação das sombras no Hades.",
-            "traducao_pt": "Odisseu consulta Tirésias e encontra as almas dos mortos.",
-            "dominio_publico": True,
-            "url_ou_referencia": "Perseus Digital Library: Hom. Od. 11.1",
-        },
-    ]
-    nomes_canonicos = {
-        "Ulisses": "Odisseu",
-        "Ciclope": "Polifemo",
-        "Minerva": "Atena",
-        "Netuno": "Poseidon",
-    }
+    cliente = obter_cliente_modelo("LLM-R")
+    saida = cliente.gerar_estruturado(
+        schema=PesquisadorFontesOutput,
+        prompt_sistema="Pesquise fontes canônicas de domínio público para o mito informado.",
+        entradas={"episodio": state.get("episodio")},
+    )
     return {
         "pesquisa": {
-            "fontes": fontes,
-            "nomes_canonicos": nomes_canonicos,
+            "fontes": [f.model_dump() for f in saida.fontes],
+            "nomes_canonicos": saida.nomes_canonicos,
         }
     }
 
 
 @no_agente("pesquisa.verificador_fatos", categoria_modelo="LLM-R")
 def verificador_fatos_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    fatos = [
-        {
-            "id": "fato_01",
-            "descricao": "Odisseu oferece vinho puro a Polifemo antes de atacá-lo.",
-            "fontes_confirmadas": ["Canto IX, 105-566"],
-            "variante_ou_tardia": False,
-            "grau_certeza": "canonica",
-        },
-        {
-            "id": "fato_02",
-            "descricao": "Odisseu diz chamar-se Ninguém (Outis).",
-            "fontes_confirmadas": ["Canto IX, 105-566"],
-            "variante_ou_tardia": False,
-            "grau_certeza": "canonica",
-        },
-        {
-            "id": "fato_03",
-            "descricao": "A fuga ocorre amarrando os marinheiros sob os ventres dos carneiros.",
-            "fontes_confirmadas": ["Canto IX, 105-566"],
-            "variante_ou_tardia": False,
-            "grau_certeza": "canonica",
-        },
-    ]
+    cliente = obter_cliente_modelo("LLM-R")
+    saida = cliente.gerar_estruturado(
+        schema=VerificadorFatosOutput,
+        prompt_sistema="Confirme cada fato em fontes primárias e classifique controvérsias.",
+        entradas={"pesquisa": state.get("pesquisa")},
+    )
     return {
         "pesquisa": {
-            "fatos": fatos,
-            "controversias": [],
+            "fatos": [f.model_dump() for f in saida.fatos],
+            "controversias": saida.controversias,
         }
     }
 
 
 @no_agente("pesquisa.analista_referencia", categoria_modelo="LLM-V")
 def analista_referencia_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    referencia = {
-        "metricas_ritmo": {"media_duracao_plano_s": 5.2, "cortes_por_minuto": 11.5},
-        "densidade_cortes_ppm": 11.5,
-        "lacunas_identificadas": ["Ausência de física real de sombras nos concorrentes"],
-    }
+    cliente = obter_cliente_modelo("LLM-V")
+    saida = cliente.gerar_estruturado(
+        schema=AnalistaReferenciaOutput,
+        prompt_sistema="Analise ritmo de montagem e lacunas em referências concorrentes.",
+        entradas={"pesquisa": state.get("pesquisa")},
+    )
     return {
         "pesquisa": {
-            "referencia": referencia,
+            "referencia": saida.model_dump(),
         }
     }
 
 
 @no_agente("pesquisa.analista_demanda", categoria_modelo="LLM-R")
 def analista_demanda_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    angulos = [
-        {"angulo": "O Erro Fatal de Polifemo: Por Que a Força Bruta Perdeu", "score": 9.2},
-        {"angulo": "A Maldição de Poseidon e a Solidão no Mar", "score": 8.7},
-    ]
+    cliente = obter_cliente_modelo("LLM-R")
+    saida = cliente.gerar_estruturado(
+        schema=AnalistaDemandaOutput,
+        prompt_sistema="Mapeie concorrência e ângulos mais fortes para o público de mitologia.",
+        entradas={"pesquisa": state.get("pesquisa")},
+    )
     return {
         "pesquisa": {
-            "angulos": angulos,
+            "angulos": [a.model_dump() for a in saida.angulos_ranqueados],
         }
     }
 

@@ -1,9 +1,20 @@
 # Progresso da Construção: Runtime LangGraph LUME
 
 ## Status Geral
-- **Fase Atual:** Fase C · Pesquisa + Roteiro + Gate 1
-- **Fase Anterior Concluída:** Fase B · Esqueleto Completo (4/4 testes de integração passaram, total 11/11)
-- **Próximo Passo Exato:** Implementar os 4 agentes de Pesquisa e os 5 de Roteiro de verdade com prompts versionados em `prompts/`, wrapper de modelos determinísticos, validação de regras canônicas (reprovação de gírias, fatos inventados e gancho > 45s) e ciclo de revisão com até 3 voltas.
+- **Fase Atual:** Fase D · Direção + Storyboard + Gate 2
+- **Fase Anterior Concluída:** Fase C · Pesquisa + Roteiro + Gate 1 (5/5 testes passaram, total 16/16)
+- **Próximo Passo Exato:** Implementar os 5 agentes de Direção (decupagem com gramática do doc 04 §3, color script com níveis de fogo 1 a 5, supervisor de direção de tela com correção → casa, elenco com consulta à Store e animatic para o Gate 2).
+
+---
+
+## Avaliação Fase C · Pesquisa + Roteiro + Gate 1
+- [x] Os 4 agentes de Pesquisa com prompts e modelo determinístico: OK
+- [x] Os 5 agentes de Roteiro com ciclo autor ↔ revisores: OK
+- [x] Roteiro chega ao Gate 1 com fontes por bloco (canto/verso): OK (`test_pesquisa_e_roteiro_chegam_ao_gate_1_com_fontes_e_fatos`)
+- [x] Notas dos 3 revisores (retenção, fidelidade, tom): OK
+- [x] Nenhuma frase sem fato correspondente: OK
+- [x] Casos de reprovação da ficha (gíria, fato inventado, gancho > 45s): OK
+- [x] Limite máximo de 3 voltas respeitado: OK (`test_ciclo_revisao_refaz_roteiro_e_limita_3_voltas`)
 
 ---
 
