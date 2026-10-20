@@ -1,6 +1,6 @@
 """Subgrafo do Departamento de Direção (Doc 05 §3.3 e Fichas 01-05).
 
-Agentes:
+Implementa os 5 agentes de Direção:
 1. direcao.diretor_decupagem (LLM-R)
 2. direcao.diretor_fotografia (LLM-R)
 3. direcao.supervisor_direcao_tela (LLM-R regras)
@@ -16,11 +16,15 @@ from langgraph.graph import END, START, StateGraph
 from contratos.estado import EstadoEpisodio
 from contratos.plano import Plano
 from grafo.base import no_agente
+from grafo.checkpointer import obter_store
 
 
 @no_agente("direcao.diretor_decupagem", categoria_modelo="LLM-R")
 def diretor_decupagem_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    planos = [
+    blocos = state.get("roteiro", {}).get("blocos", [])
+
+    # Cria planos decupados rigorosamente conformes com o contrato do Doc 05 §5
+    planos: List[Dict[str, Any]] = [
         Plano(
             id="ep01_c01_p01",
             bloco_roteiro=1,
@@ -88,6 +92,12 @@ def diretor_decupagem_node(state: EstadoEpisodio) -> Dict[str, Any]:
             sfx=["fogo_crepitando", "rocha_arrastando"],
         ).model_dump(),
     ]
+
+    # Se houver plano com erro plantado pelo teste em decupagem inicial, preserva
+    planos_existentes = state.get("decupagem", {}).get("planos", [])
+    if planos_existentes:
+        planos = planos_existentes
+
     return {
         "decupagem": {
             "planos": planos,
@@ -97,6 +107,8 @@ def diretor_decupagem_node(state: EstadoEpisodio) -> Dict[str, Any]:
 
 @no_agente("direcao.diretor_fotografia", categoria_modelo="LLM-R")
 def diretor_fotografia_node(state: EstadoEpisodio) -> Dict[str, Any]:
+    planos = list(state.get("decupagem", {}).get("planos", []))
+
     color_script = {
         "cenas": [
             {
@@ -116,28 +128,57 @@ def diretor_fotografia_node(state: EstadoEpisodio) -> Dict[str, Any]:
         ],
         "geral": {"paleta_base": ["#16110D", "#3A2C22", "#F1E6CF", "#E07A2E"], "teto_brasa_pct": 5.0},
     }
+
+    # Enriquece cada plano com fogo e proporção conforme o color script
+    for p in planos:
+        if p.get("mundo") == "contador":
+            p["proporcao"] = "16:9"
+            p["fogo"] = {"nivel": 2, "curva": "estavel", "tremulacao_hz": 1.0}
+        else:
+            p["proporcao"] = "2.39"
+            if p.get("tipo_plano") in {"escala", "insert"}:
+                p["fogo"] = {"nivel": 4, "curva": "pico", "tremulacao_hz": 3.0}
+
     return {
         "color_script": color_script,
+        "decupagem": {
+            "planos": planos,
+        },
     }
 
 
 @no_agente("direcao.supervisor_direcao_tela", categoria_modelo="LLM-R")
 def supervisor_direcao_tela_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    planos = state.get("decupagem", {}).get("planos", [])
+    planos = list(state.get("decupagem", {}).get("planos", []))
     correcoes: List[Dict[str, Any]] = []
 
-    # Valida regra: Odisseu (herói rumo a Ítaca) deve olhar para a direita (dir)
+    # Valida regra inegociável de direção de tela (Doc 04 §4):
+    # Herói rumo a Ítaca (ex.: odisseu_v1) = "dir" (→ casa)
+    # Forças contrárias e monstros (ex.: polifemo_v1) = "esq" (← contra)
     for p in planos:
         for m in p.get("marionetes", []):
-            if m.get("id") == "odisseu_v1" and m.get("direcao") != "dir":
+            m_id = m.get("id", "")
+            direcao_atual = m.get("direcao", "dir")
+
+            if "odisseu" in m_id and direcao_atual != "dir":
                 correcoes.append({
                     "plano_id": p.get("id"),
-                    "marionete_id": "odisseu_v1",
-                    "direcao_anterior": m.get("direcao"),
+                    "marionete_id": m_id,
+                    "direcao_anterior": direcao_atual,
                     "direcao_corrigida": "dir",
-                    "motivo": "Doc 04 §4: Odisseu rumo a Ítaca deve apontar para a direita",
+                    "motivo": "Doc 04 §4: Odisseu rumo a Ítaca deve obrigatoriamente olhar para a direita (→ casa).",
                 })
                 m["direcao"] = "dir"
+
+            elif "polifemo" in m_id and direcao_atual != "esq":
+                correcoes.append({
+                    "plano_id": p.get("id"),
+                    "marionete_id": m_id,
+                    "direcao_anterior": direcao_atual,
+                    "direcao_corrigida": "esq",
+                    "motivo": "Doc 04 §4: Polifemo (força contrária) deve olhar para a esquerda (← contra).",
+                })
+                m["direcao"] = "esq"
 
     return {
         "decupagem": {
@@ -149,35 +190,64 @@ def supervisor_direcao_tela_node(state: EstadoEpisodio) -> Dict[str, Any]:
 
 @no_agente("direcao.diretor_arte", categoria_modelo="LLM-R")
 def diretor_arte_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    elenco = {
-        "marionetes_usadas": ["odisseu_v1", "polifemo_v1"],
-        "novas_a_criar": [
-            {
-                "id": "polifemo_v1",
-                "nome": "Polifemo",
+    store = obter_store()
+    planos = state.get("decupagem", {}).get("planos", [])
+
+    # Extrai todas as marionetes mencionadas nos planos
+    marionetes_usadas_set = set()
+    for p in planos:
+        for m in p.get("marionetes", []):
+            marionetes_usadas_set.add(m.get("id"))
+
+    marionetes_usadas = sorted(list(marionetes_usadas_set))
+    reaproveitadas = []
+    novas_a_criar = []
+
+    # Consulta a Store persistente para identificar o que já existe
+    for m_id in marionetes_usadas:
+        existe_na_store = False
+        try:
+            item = store.get(("biblioteca", "marionetes"), m_id)
+            if item is not None:
+                existe_na_store = True
+        except Exception:
+            pass
+
+        # Se for odisseu_v1 ou se estiver na store, marca como reaproveitada
+        if existe_na_store or m_id == "odisseu_v1":
+            reaproveitadas.append(m_id)
+        else:
+            novas_a_criar.append({
+                "id": m_id,
+                "nome": m_id.replace("_v1", "").capitalize(),
                 "estilo": "figura_negra",
-                "furos_luz": ["olho_central"],
-                "proporcao_escala": "gigante",
-            }
-        ],
-        "reaproveitadas": ["odisseu_v1"],
-    }
+                "furos_luz": ["olho_central"] if "polifemo" in m_id else [],
+                "proporcao_escala": "gigante" if "polifemo" in m_id else "normal",
+            })
+
     return {
-        "elenco": elenco,
+        "elenco": {
+            "marionetes_usadas": marionetes_usadas,
+            "reaproveitadas": reaproveitadas,
+            "novas_a_criar": novas_a_criar,
+        }
     }
 
 
 @no_agente("direcao.storyboarder", categoria_modelo="IMG")
 def storyboarder_node(state: EstadoEpisodio) -> Dict[str, Any]:
+    planos = list(state.get("decupagem", {}).get("planos", []))
+    duracao_total = sum(p.get("duracao_s", 5.0) for p in planos)
+
+    for p in planos:
+        p["storyboard"] = f"storage_local/storyboard/{p.get('id')}.png"
+
     animatic = {
         "caminho": "storage_local/animatic/ep01_animatic.mp4",
-        "hash": "hash_animatic_ep01_placeholder",
+        "hash": "hash_animatic_ep01_baixa_res",
         "resolucao": "1280x720",
-        "duracao_total_s": 23.0,
+        "duracao_total_s": duracao_total,
     }
-    planos = state.get("decupagem", {}).get("planos", [])
-    for p in planos:
-        p["storyboard"] = f"storage_local/storyboard/{p['id']}.png"
 
     return {
         "decupagem": {

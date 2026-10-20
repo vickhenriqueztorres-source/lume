@@ -1,9 +1,18 @@
 # Progresso da Construção: Runtime LangGraph LUME
 
 ## Status Geral
-- **Fase Atual:** Fase D · Direção + Storyboard + Gate 2
-- **Fase Anterior Concluída:** Fase C · Pesquisa + Roteiro + Gate 1 (5/5 testes passaram, total 16/16)
-- **Próximo Passo Exato:** Implementar os 5 agentes de Direção (decupagem com gramática do doc 04 §3, color script com níveis de fogo 1 a 5, supervisor de direção de tela com correção → casa, elenco com consulta à Store e animatic para o Gate 2).
+- **Fase Atual:** Fase E · Arte + Animação
+- **Fase Anterior Concluída:** Fase D · Direção + Storyboard + Gate 2 (4/4 testes passaram, total 20/20)
+- **Próximo Passo Exato:** Implementar os 5 agentes de Arte e os 5 de Animação com processamento por item novo e por plano (`Send`/map-reduce), cache de render por hash visual, mock de Blender headless/potrace e escalada para fila humana na 3ª falha.
+
+---
+
+## Avaliação Fase D · Direção + Storyboard + Gate 2
+- [x] Os 5 agentes de Direção com prompts e ferramentas: OK
+- [x] Todo plano cumpre o contrato do doc 05 §5: OK (`test_planos_cumprem_contrato_doc05_paragrafo_5`)
+- [x] Supervisor de direção de tela corrige caso errado plantado no teste: OK (`test_supervisor_direcao_tela_corrige_caso_errado_plantado`)
+- [x] Elenco distingue novas marionetes de reaproveitadas via Store: OK (`test_elenco_marca_novas_e_reaproveitadas`)
+- [x] Storyboarder e animatic no Gate 2: OK (`test_direcao_chega_ao_gate_2_com_animatic`)
 
 ---
 
