@@ -74,6 +74,11 @@ class StartFrameGenerator:
 
         out_path = target_dir / f"{id_sanitizado}.png"
 
+        # Preserva frame cinematográfico real já gerado por IA
+        if out_path.exists() and out_path.stat().st_size > 50000:
+            LOGGER.info(f"[START_FRAME] Reutilizando imagem cinematográfica existente para {plano_id}: {out_path}")
+            return out_path
+
         try:
             # 1. Base: parede de pedra escura com textura de braseiro (#2B2621)
             img = Image.new("RGB", (largura, altura), color=(43, 38, 33))
