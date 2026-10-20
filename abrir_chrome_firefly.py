@@ -52,12 +52,15 @@ with sync_playwright() as p:
 
     print(f"[FIREFLY TEST] Pagina carregada com sucesso! Titulo: {page.title()}")
     print("[FIREFLY TEST] O navegador esta aberto e ativo na sua tela.")
+    print("[FIREFLY TEST] A janela ficara aberta ate voce fechar o Chrome.")
     
-    # Aguarda 60 segundos ou enquanto a página estiver aberta para o usuário visualizar
-    print("[FIREFLY TEST] Mantendo a janela aberta...")
-    for _ in range(120):
-        time.sleep(1)
-        if page.is_closed():
-            break
+    # Mantém a janela aberta continuamente enquanto o usuário navega
+    try:
+        while not page.is_closed():
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    except Exception:
+        pass
 
-    print("[FIREFLY TEST] Teste de abertura finalizado.")
+    print("[FIREFLY TEST] Janela do Chrome fechada pelo usuario.")
