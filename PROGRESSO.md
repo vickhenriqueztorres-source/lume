@@ -1,9 +1,18 @@
 # Progresso da Construção: Runtime LangGraph LUME
 
 ## Status Geral
-- **Fase Atual:** Fase G · Montagem + QA
-- **Fase Anterior Concluída:** Fase F · Áudio (4/4 testes passaram, total 28/28)
-- **Próximo Passo Exato:** Implementar os 4 agentes de Montagem (editor OTIO, grafismo, finalizador 4K, legendador) e os 6 agentes de QA (técnico, continuidade, fidelidade, marca, direitos, originalidade com retrabalho cirúrgico e Gate 3).
+- **Fase Atual:** Fase H · Embalagem + Publicação
+- **Fase Anterior Concluída:** Fase G · Montagem + QA (4/4 testes passaram, total 32/32)
+- **Próximo Passo Exato:** Implementar os 5 agentes de Embalagem (titulista ≤ 60 chars, designer de thumbnail layouts A/B/C, avaliador de feed a 120px, redator de metadados, cortador de Shorts), Gate 4, e Publicador sempre em modo privado com Gate 5.
+
+---
+
+## Avaliação Fase G · Montagem + QA
+- [x] Os 4 agentes de Montagem e os 6 de QA com prompts e ferramentas: OK
+- [x] Master 4K gerado com capítulos e legendas: OK (`test_master_gerado_com_capitulos_e_legendas`)
+- [x] Cada um dos 5 QAs bloqueantes reprova defeito e aponta departamento certo: OK (`test_cada_qa_bloqueante_reprova_defeito_e_aponta_departamento_certo`)
+- [x] QA de marca emite apenas aviso (bloqueia=False): OK (`test_qa_marca_emite_apenas_aviso_sem_bloquear`)
+- [x] QA geral aprova para o Gate 3 na presença de aviso de marca: OK (`test_subgrafo_qa_consolida_aprovacao_quando_apenas_marca_avisa`)
 
 ---
 
