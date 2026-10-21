@@ -17,6 +17,7 @@ from langgraph.graph import END, START, StateGraph
 
 from contratos.estado import EstadoEpisodio
 from contratos.plano import calcular_hash_plano
+from grafo.animacao.engenheiro_prompt_video import engenheiro_prompt_video_node
 from grafo.base import no_agente
 
 
@@ -84,8 +85,13 @@ def gerente_render_node(state: EstadoEpisodio) -> Dict[str, Any]:
         p_id = p.get("id")
         hash_visual = calcular_hash_plano(p)
 
-        # 1. Checa cache de render pelo hash do contrato
-        if hash_visual in _RENDER_CACHE and os.path.exists(_RENDER_CACHE[hash_visual]):
+        # 1. Prioriza render real do Firefly Kling se ja existir em disco
+        real_render_candidate = Path(f"storage_local/renders/{episodio_id}/{p_id}.mp4")
+        if real_render_candidate.is_file() and real_render_candidate.stat().st_size > 1_000_000:
+            video_caminho = str(real_render_candidate.resolve())
+            _RENDER_CACHE[hash_visual] = video_caminho
+            cache_hit = True
+        elif hash_visual in _RENDER_CACHE and os.path.exists(_RENDER_CACHE[hash_visual]):
             video_caminho = _RENDER_CACHE[hash_visual]
             cache_hit = True
         else:
@@ -100,13 +106,15 @@ def gerente_render_node(state: EstadoEpisodio) -> Dict[str, Any]:
                     direcao_olhar=p.get("direcao_olhar", "D"),
                 ))
 
-            # Animação serial via FireflyEngine
+            # Animação serial via FireflyEngine com motion prompt gerado pelo engenheiro de vídeo
             movimento = p.get("camera", {}).get("movimento", "push_in_lento")
             dur = p.get("duracao_s", 5.0)
+            video_ia_info = assets_planos.get(p_id, {}).get("video_ia", {})
+            motion_prompt = video_ia_info.get("prompt") or p.get("prompt_video") or f"Movimento de camera {movimento} com teatro de sombras"
             clipe = firefly_engine.animate_start_frame(
                 plano_id=f"{p_id}_{hash_visual[:8]}",
                 start_frame_path=start_frame_path,
-                motion_prompt=f"Movimento de camera {movimento} com teatro de sombras",
+                motion_prompt=motion_prompt,
                 target_duration=dur,
                 episodio_id=str(episodio_id),
             )
@@ -217,13 +225,15 @@ def construir_subgrafo_animacao() -> StateGraph:
 
     builder.add_node("animacao.animador_plano", animador_plano_node)
     builder.add_node("animacao.montador_cena_3d", montador_cena_3d_node)
+    builder.add_node("animacao.engenheiro_prompt_video", engenheiro_prompt_video_node)
     builder.add_node("animacao.gerente_render", gerente_render_node)
     builder.add_node("animacao.revisor_plano", revisor_plano_node)
     builder.add_node("animacao.vfx", vfx_node)
 
     builder.add_edge(START, "animacao.animador_plano")
     builder.add_edge("animacao.animador_plano", "animacao.montador_cena_3d")
-    builder.add_edge("animacao.montador_cena_3d", "animacao.gerente_render")
+    builder.add_edge("animacao.montador_cena_3d", "animacao.engenheiro_prompt_video")
+    builder.add_edge("animacao.engenheiro_prompt_video", "animacao.gerente_render")
     builder.add_edge("animacao.gerente_render", "animacao.revisor_plano")
     builder.add_edge("animacao.revisor_plano", "animacao.vfx")
     builder.add_edge("animacao.vfx", END)

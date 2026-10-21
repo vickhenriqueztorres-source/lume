@@ -183,6 +183,13 @@ AGENTE_PARA_SUBCAMPO: Dict[str, List[str]] = {
 # Campos de append universais acessíveis por qualquer nó
 CAMPOS_APPEND_UNIVERSAIS: Set[str] = {"custos", "erros"}
 
+# Extensões especializadas de produção (engenharia de prompts e geração CLI)
+AGENTES_EXTENSAO: Dict[str, List[str]] = {
+    "direcao.engenheiro_prompt_imagem": ["decupagem.planos"],
+    "direcao.gerador_imagem_cli": ["decupagem.planos"],
+    "animacao.engenheiro_prompt_video": ["assets.planos", "qa", "episodio.fila_humana"],
+}
+
 
 def obter_departamento(agente_id: str) -> str:
     """Extrai o nome do departamento a partir do ID do agente."""
@@ -193,10 +200,12 @@ def obter_departamento(agente_id: str) -> str:
 
 def validar_escrita_agente(agente_id: str, updates: Dict[str, Any]) -> bool:
     """Valida se o dicionário retornado pelo nó escreve exclusivamente nos subcampos permitidos."""
-    if agente_id not in AGENTE_PARA_SUBCAMPO:
+    if agente_id in AGENTES_EXTENSAO:
+        subcampos_permitidos = AGENTES_EXTENSAO[agente_id]
+    elif agente_id in AGENTE_PARA_SUBCAMPO:
+        subcampos_permitidos = AGENTE_PARA_SUBCAMPO[agente_id]
+    else:
         raise ValueError(f"Agente desconhecido: {agente_id}")
-
-    subcampos_permitidos = AGENTE_PARA_SUBCAMPO[agente_id]
 
     for key, value in updates.items():
         if key in CAMPOS_APPEND_UNIVERSAIS:

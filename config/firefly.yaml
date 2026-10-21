@@ -1,0 +1,10 @@
+# Configuração Padrão de Geração de Vídeo Adobe Firefly (Kling 2.5 Turbo)
+firefly_video:
+  modelo: "Kling 2.5 Turbo"
+  resolucao: "1080p"
+  proporcao: "16:9"
+  fps: 24
+  duracao_segundos: 5
+  quadros: "primeiro"
+  semente: null
+  automation_root: "D:\\agents 3.0 brecha - antigravity\\canalbrecha\\firefly-automation"

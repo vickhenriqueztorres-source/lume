@@ -118,6 +118,7 @@ Legenda de tipo de modelo: **LLM-R** = LLM de raciocínio/escrita · **LLM-V** =
 | **Animador de plano** | Converte o plano (contrato §5) em parâmetros de cena: posição das marionetes, distância do fogo, curva do fogo, movimento de câmera, poses-chave | arquivo de cena parametrizado | LLM-R + Ferr. |
 | **Montador de cena 3D** | Aplica os parâmetros num template Blender (luz-fogueira, parede, névoa, câmera) | `.blend` do plano | Ferr. (Blender headless) |
 | **Gerente de render** | Envia para a fila de GPU, acompanha, reenvia se falhar | frames/vídeo do plano | Ferr. |
+| **Engenheiro de prompt de vídeo** [adicionado na construção] | Converte planos do Contador, VFX e inserts em prompts cinemáticos refinados com bíblia, restrições e âncora visual | `assets.planos[<id>].video_ia` | Ferr. + LLM-R |
 | **Revisor de plano** | Olha 3 quadros do render e compara com o storyboard e com a ficha da silhueta | aprovado / refazer + motivo | LLM-V |
 | **VFX** | Brasas, fumaça e cinzas em primeiro plano; plano do Contador | camadas | Ferr. (templates) |
 
@@ -211,6 +212,7 @@ Cada um dos ~200 planos é um objeto com estes campos, e é ele que viaja pelo `
 | `transicao_saida` | `match_cut:olho→fogueira` | Editor |
 | `sfx[]` | `ronco_grave` | Sound designer |
 | `storyboard` | caminho do quadro | Storyboarder |
+| `intencao_visual` [adicionado na construção] | "O Contador estende a mão para o fogo..." | Direção |
 | `render` | `{caminho, hash, status, tentativas}` | Animação |
 | `qa` | `{continuidade: ok, notas}` | Revisor de plano |
 

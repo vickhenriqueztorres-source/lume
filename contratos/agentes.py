@@ -378,3 +378,34 @@ class AnalistaDesempenhoOutput(BaseModel):
 
 class CuradorMemoriaOutput(BaseModel):
     licoes_geradas: List[Dict[str, Any]]
+
+
+# ---------------------------------------------------------------------------
+# 11. Engenharia de Prompts Cinemáticos (Imagem & Vídeo)
+# ---------------------------------------------------------------------------
+class PromptImagemItem(BaseModel):
+    plano_id: str
+    prompt_positivo: str
+    prompt_negativo: str = "text, watermark, logo, blur, distorted, extra limbs, low resolution, 3d render"
+    estilo_cinematografico: str
+    lente_sugerida: str
+    paleta_cores: List[str]
+    consistencia_personagens: List[str]
+
+
+class EngenheiroPromptImagemOutput(BaseModel):
+    prompts_planos: List[PromptImagemItem]
+    diretriz_consistencia: str
+
+
+class PromptVideoItem(BaseModel):
+    plano_id: str
+    motion_prompt: str
+    camera_prompt: str
+    ritmo_duracao_s: float
+    curva_fogo: str
+
+
+class EngenheiroPromptVideoOutput(BaseModel):
+    prompts_movimento: List[PromptVideoItem]
+

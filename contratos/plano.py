@@ -69,6 +69,12 @@ class Plano(BaseModel):
     transicao_saida: Optional[str] = None
     sfx: List[str] = Field(default_factory=list)
     storyboard: Optional[str] = None
+    intencao_visual: Optional[str] = Field(
+        default=None,
+        description="Intenção visual curta escrita pela Direção para orientar a ação de vídeo IA [adicionado na construção]",
+    )
+    prompt_imagem: Optional[str] = Field(default=None, description="Prompt cinemático para geração de imagem / start frame")
+    prompt_video: Optional[str] = Field(default=None, description="Prompt cinemático de movimento para animação no Firefly")
     render: RenderNoPlano = Field(default_factory=RenderNoPlano)
     qa: QANoPlano = Field(default_factory=QANoPlano)
 

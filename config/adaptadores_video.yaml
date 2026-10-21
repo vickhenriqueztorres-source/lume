@@ -1,0 +1,27 @@
+# Configuração dos Adaptadores de Vídeo por IA (Doc 08 §4.2)
+adaptadores:
+  kling_25_turbo:
+    modelo_real: "Kling 2.5 Turbo"
+    limite_caracteres: 1000
+    aceita_negativo: true
+    aceita_quadro_inicial: true
+    aceita_quadro_final: false
+    duracoes_possiveis_s: [5, 10]
+    aceita_controle_camera: false
+    resolucoes: ["720p", "1080p"]
+    proporcoes: ["16:9", "9:16"]
+    fps: 24
+
+  firefly_video_v1:
+    modelo_real: "Firefly Video"
+    limite_caracteres: 1200
+    aceita_negativo: false
+    aceita_quadro_inicial: true
+    aceita_quadro_final: false
+    duracoes_possiveis_s: [5]
+    aceita_controle_camera: true
+    resolucoes: ["720p", "1080p"]
+    proporcoes: ["16:9", "9:16"]
+    fps: 24
+
+  padrao: "kling_25_turbo"

@@ -17,6 +17,8 @@ from contratos.estado import EstadoEpisodio
 from contratos.plano import Plano
 from grafo.base import no_agente
 from grafo.checkpointer import obter_store
+from grafo.direcao.engenheiro_prompt_imagem import engenheiro_prompt_imagem_node
+from grafo.ferramentas.gerador_imagem_cli import gerador_imagem_cli_node
 
 
 @no_agente("direcao.diretor_decupagem", categoria_modelo="LLM-R")
@@ -283,12 +285,16 @@ def construir_subgrafo_direcao() -> StateGraph:
     builder.add_node("direcao.supervisor_direcao_tela", supervisor_direcao_tela_node)
     builder.add_node("direcao.diretor_arte", diretor_arte_node)
     builder.add_node("direcao.storyboarder", storyboarder_node)
+    builder.add_node("direcao.engenheiro_prompt_imagem", engenheiro_prompt_imagem_node)
+    builder.add_node("direcao.gerador_imagem_cli", gerador_imagem_cli_node)
 
     builder.add_edge(START, "direcao.diretor_decupagem")
     builder.add_edge("direcao.diretor_decupagem", "direcao.diretor_fotografia")
     builder.add_edge("direcao.diretor_fotografia", "direcao.supervisor_direcao_tela")
     builder.add_edge("direcao.supervisor_direcao_tela", "direcao.diretor_arte")
     builder.add_edge("direcao.diretor_arte", "direcao.storyboarder")
-    builder.add_edge("direcao.storyboarder", END)
+    builder.add_edge("direcao.storyboarder", "direcao.engenheiro_prompt_imagem")
+    builder.add_edge("direcao.engenheiro_prompt_imagem", "direcao.gerador_imagem_cli")
+    builder.add_edge("direcao.gerador_imagem_cli", END)
 
     return builder.compile()
