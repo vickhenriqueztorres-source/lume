@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "canal_lume": {
+      "command": "python",
+      "args": [
+        "D:\\BRENDA\\STUDIO DOCS - YOUTUBE\\Canal 06 - Lume\\canal_lume_mcp.py"
+      ]
+    }
+  }
+}

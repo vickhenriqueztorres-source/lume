@@ -5,5 +5,12 @@ __pycache__/
 .coverage
 htmlcov/
 storage_local/
+data/*.db
+inputs/
+exports/
+renders/
+*.mp4
+*.wav
+*.mp3
 .env
 .venv/

@@ -62,22 +62,76 @@ def narrador_node(state: EstadoEpisodio) -> Dict[str, Any]:
 def sound_designer_node(state: EstadoEpisodio) -> Dict[str, Any]:
     sfx = [
         {
-            "id": "fogo_braseiro_loop",
-            "caminho": "storage_local/sfx/fogo_loop.wav",
-            "licenca": "CC0_public_domain",
+            "id": "sfx_01_braseiro_fogo_intimo",
+            "caminho": "storage_local/sfx/real_2d/sfx_01_braseiro_fogo_intimo.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
             "categoria": "fogo",
         },
         {
-            "id": "passos_caverna",
-            "caminho": "storage_local/sfx/passos.wav",
-            "licenca": "LUME_foley_library",
+            "id": "sfx_02_pergaminho_antigo",
+            "caminho": "storage_local/sfx/real_2d/sfx_02_pergaminho_antigo.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
             "categoria": "foley",
         },
         {
-            "id": "impacto_rocha",
-            "caminho": "storage_local/sfx/rocha.wav",
-            "licenca": "LUME_foley_library",
+            "id": "sfx_03_rocha_selando_caverna",
+            "caminho": "storage_local/sfx/real_2d/sfx_03_rocha_selando_caverna.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
             "categoria": "monstro",
+        },
+        {
+            "id": "sfx_04_ambiencia_caverna_gotas",
+            "caminho": "storage_local/sfx/real_2d/sfx_04_ambiencia_caverna_gotas.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+            "categoria": "ambiente",
+        },
+        {
+            "id": "sfx_05_passos_respiracao_ciclope",
+            "caminho": "storage_local/sfx/real_2d/sfx_05_passos_respiracao_ciclope.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+            "categoria": "monstro",
+        },
+        {
+            "id": "sfx_06_afiando_estaca_madeira",
+            "caminho": "storage_local/sfx/real_2d/sfx_06_afiando_estaca_madeira.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+            "categoria": "foley",
+        },
+        {
+            "id": "sfx_07_vinho_vertido_anfora",
+            "caminho": "storage_local/sfx/real_2d/sfx_07_vinho_vertido_anfora.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+            "categoria": "foley",
+        },
+        {
+            "id": "sfx_08_ciclope_bebendo_goles",
+            "caminho": "storage_local/sfx/real_2d/sfx_08_ciclope_bebendo_goles.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+            "categoria": "monstro",
+        },
+        {
+            "id": "sfx_09_eco_sussurro_caverna",
+            "caminho": "storage_local/sfx/real_2d/sfx_09_eco_sussurro_caverna.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+            "categoria": "retencao",
+        },
+        {
+            "id": "sfx_10_queda_ronco_gigante",
+            "caminho": "storage_local/sfx/real_2d/sfx_10_queda_ronco_gigante.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+            "categoria": "monstro",
+        },
+        {
+            "id": "sfx_11_estaca_chamas_ataque",
+            "caminho": "storage_local/sfx/real_2d/sfx_11_estaca_chamas_ataque.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+            "categoria": "climax",
+        },
+        {
+            "id": "sfx_12_urro_agonia_polifemo",
+            "caminho": "storage_local/sfx/real_2d/sfx_12_urro_agonia_polifemo.wav",
+            "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+            "categoria": "climax",
         },
     ]
     return {
@@ -90,19 +144,31 @@ def sound_designer_node(state: EstadoEpisodio) -> Dict[str, Any]:
 @no_agente("audio.supervisor_musical", categoria_modelo="LLM-R")
 def supervisor_musical_node(state: EstadoEpisodio) -> Dict[str, Any]:
     trilha = {
-        "tema_principal": "Leitmotiv de Odisseu - Cordas antigas e aulos",
+        "tema_principal": "Leitmotiv de Odisseu - Lira Grega Frígia, Aulos, Percussão Ritual e Coro Épico",
         "stems": [
             {
-                "id": "cordas_tensao",
-                "caminho": "storage_local/trilha/cordas.wav",
-                "licenca": "LUME_music_library",
-                "instrumentos": ["aulos", "lira"],
+                "id": "bgm_01_lira_abertura_fechamento",
+                "caminho": "storage_local/trilha/real_2d/bgm_01_lira_abertura_fechamento.wav",
+                "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+                "instrumentos": ["lira", "kithara"],
             },
             {
-                "id": "percussao_lenta",
-                "caminho": "storage_local/trilha/percussao.wav",
-                "licenca": "LUME_music_library",
-                "instrumentos": ["tambor_pedra"],
+                "id": "bgm_02_drone_aulos_caverna",
+                "caminho": "storage_local/trilha/real_2d/bgm_02_drone_aulos_caverna.wav",
+                "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+                "instrumentos": ["aulos", "drone_grave"],
+            },
+            {
+                "id": "bgm_03_percussao_tensao_astucia",
+                "caminho": "storage_local/trilha/real_2d/bgm_03_percussao_tensao_astucia.wav",
+                "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+                "instrumentos": ["tambor_pele", "cordas_antigas"],
+            },
+            {
+                "id": "bgm_04_coro_climax_epico",
+                "caminho": "storage_local/trilha/real_2d/bgm_04_coro_climax_epico.wav",
+                "licenca": "ElevenLabs_Commercial_Audio_License_LUME",
+                "instrumentos": ["coro_masculino", "percussao_guerra"],
             },
         ],
     }
@@ -115,19 +181,24 @@ def supervisor_musical_node(state: EstadoEpisodio) -> Dict[str, Any]:
 
 @no_agente("audio.mixador", categoria_modelo=None)
 def mixador_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    mix_caminho = "storage_local/audio/mix_final.wav"
+    mix_caminho = "storage_local/audio/master_audio_60s.wav"
     lufs_calculado = medir_lufs(mix_caminho)
 
     mix = {
         "caminho": mix_caminho,
-        "hash": "hash_mix_final_ep01",
-        "ducking": "habilitado_-6dB_sob_narracao",
-        "resolucao_audio": "24bit_48kHz",
+        "hash": "hash_mix_final_ep01_stereo_24bit",
+        "ducking": "sidechaincompress_dinamico_-8.5dB_BGM_-6.0dB_SFX",
+        "resolucao_audio": "24bit_48kHz_Stereo",
+        "stems": {
+            "voz": "storage_local/audio/stem_voz_60s.wav",
+            "bgm": "storage_local/audio/stem_bgm_60s.wav",
+            "sfx": "storage_local/audio/stem_sfx_60s.wav",
+        },
     }
     return {
         "audio": {
             "mix": mix,
-            "lufs": lufs_calculado,  # Exatamente -14.0 LUFS
+            "lufs": lufs_calculado,
         }
     }
 

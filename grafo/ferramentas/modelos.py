@@ -95,6 +95,20 @@ class ModeloFakeResposta:
                     }
                 ],
             })
+        elif forcar_invalido == "sem_gatilho_psicologico":
+            # Roteirista gerando texto descritivo plano sem erro de previsão nem loop infinito
+            return schema.model_validate({
+                "versao": 1,
+                "blocos": [
+                    {
+                        "numero": 1,
+                        "texto": "Hoje vamos falar sobre a história antiga de um viajante na caverna.",
+                        "marcacoes_cena": ["[CENA: CONTADOR]"],
+                        "fatos_referenciados": ["fato_01"],
+                        "tempo_estimado_s": 6.0,
+                    }
+                ],
+            })
 
         # Respostas padrão canônicas por schema
         if nome_schema == "PesquisadorFontesOutput":
@@ -187,17 +201,28 @@ class ModeloFakeResposta:
                 "blocos": [
                     {
                         "numero": 1,
-                        "texto": "O fogo ainda conta as mesmas histórias. Na caverna escura, o gigante fecha a entrada com a rocha que nenhum homem moveria.",
+                        "texto": (
+                            "...matar o seu inimigo é assinar a sua própria sentença de morte. "
+                            "Este papiro guarda o maior paradoxo da Odisseia. Doze homens presos na caverna; "
+                            "atrás deles, uma rocha que vinte carros de guerra não moveriam. Diante deles, Polifemo: "
+                            "se Odisseu cravar a espada no gigante adormecido, todos morrem soterrados de fome."
+                        ),
                         "marcacoes_cena": ["[CENA: MUNDO_CONTADOR]", "[CENA: PAREDE_CAVERNA]"],
                         "fatos_referenciados": ["fato_01"],
-                        "tempo_estimado_s": 35.0,
+                        "tempo_estimado_s": 24.0,
                     },
                     {
                         "numero": 2,
-                        "texto": "Ele oferece a taça de vinho doce trazido de Ísmaro. 'Bebe, Polifemo. Pergunta meu nome? Ninguém me chama meu pai e minha mãe.'",
-                        "marcacoes_cena": ["[CENA: PAREDE_TACA_FOGO]"],
+                        "texto": (
+                            "Ele precisa que o monstro abra a saída vivo, mas sem enxergar quem foge. "
+                            "Por isso forja duas armas. A primeira não rasga a carne: apaga o julgamento com o vinho puro de Maron. "
+                            "A segunda anula o socorro dos outros ciclopes com uma única palavra: 'Perguntas como me chamo? Ninguém.' "
+                            "[SILÊNCIO] A oliveira em brasa apaga o único olho! Ao amanhecer, o próprio monstro cego afasta a rocha. "
+                            "Porque quando a força bruta te cerca..."
+                        ),
+                        "marcacoes_cena": ["[CENA: PAREDE_TACA_FOGO]", "[SILÊNCIO]", "[CENA: MUNDO_CONTADOR]"],
                         "fatos_referenciados": ["fato_02"],
-                        "tempo_estimado_s": 50.0,
+                        "tempo_estimado_s": 36.0,
                     },
                 ],
             })

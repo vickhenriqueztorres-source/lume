@@ -20,16 +20,22 @@ from contratos.agentes import (
 )
 from contratos.estado import EstadoEpisodio
 from grafo.base import no_agente
+from grafo.ferramentas.canal_lume_mcp import injetar_inbox_no_estado
 from grafo.ferramentas.modelos import obter_cliente_modelo
 
 
 @no_agente("pesquisa.pesquisador_fontes", categoria_modelo="LLM-R")
 def pesquisador_fontes_node(state: EstadoEpisodio) -> Dict[str, Any]:
+    try:
+        state_enriquecido = injetar_inbox_no_estado(dict(state))
+    except Exception:
+        state_enriquecido = state
+    episodio_ctx = state_enriquecido.get("episodio")
     cliente = obter_cliente_modelo("LLM-R")
     saida = cliente.gerar_estruturado(
         schema=PesquisadorFontesOutput,
         prompt_sistema="Pesquise fontes canônicas de domínio público para o mito informado.",
-        entradas={"episodio": state.get("episodio")},
+        entradas={"episodio": episodio_ctx},
     )
     return {
         "pesquisa": {

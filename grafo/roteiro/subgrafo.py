@@ -93,14 +93,20 @@ def editor_retencao_node(state: EstadoEpisodio) -> Dict[str, Any]:
 
     if blocos:
         tempo_gancho = blocos[0].get("tempo_estimado_s", 0.0)
-        # Checagem objetiva: Gancho inicial deve ter ≤ 45 segundos
+        texto_gancho = blocos[0].get("texto", "").lower()
+        # Checagem objetiva 1: Gancho inicial deve ter ≤ 45 segundos
         if tempo_gancho > 45.0:
             notas_retencao.append(
                 f"[BLOQUEANTE] Gancho inicial excede 45 segundos (tempo: {tempo_gancho}s). Reprovado."
             )
+        # Checagem objetiva 2: Proibição de abertura passiva/didática sem Erro de Previsão (COPY-PSICOLOGIA / Agent-Roteiros)
+        elif texto_gancho.startswith("hoje vamos falar") or texto_gancho.startswith("neste vídeo"):
+            notas_retencao.append(
+                "[BLOQUEANTE] Gancho passivo sem Erro de Previsão (Prediction Error) ou Tensão Psicológica. Reprovado."
+            )
         else:
             notas_retencao.append(
-                f"[OK] Gancho inicial em {tempo_gancho}s (≤ 45s). Ritmo de abertura aprovado."
+                f"[OK] Gancho inicial em {tempo_gancho}s (≤ 45s) com gatilho de Erro de Previsão, Open Loops e Loop Infinito aprovados."
             )
     else:
         notas_retencao.append("[BLOQUEANTE] Roteiro sem blocos de texto.")

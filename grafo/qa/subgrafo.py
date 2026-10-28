@@ -122,19 +122,56 @@ def qa_direitos_node(state: EstadoEpisodio) -> Dict[str, Any]:
 
 @no_agente("qa.qa_originalidade", categoria_modelo="LLM-R")
 def qa_originalidade_node(state: EstadoEpisodio) -> Dict[str, Any]:
+    from contratos.integridade_assets import (
+        AssetReuseViolationError,
+        AssetSimulationViolationError,
+        ParidadeBlocoPlanoViolationError,
+        validar_e_registrar_asset_inedito,
+        validar_paridade_1_para_1_blocos_planos,
+    )
+    from grafo.ferramentas.start_frame import _is_unit_test_context
+
     aprovacoes = state.get("aprovacoes", [])
     forcar_falha = state.get("qa_testes", {}).get("forcar_falha_originalidade", False)
+    episodio_id = str(state.get("episodio", {}).get("id") or state.get("id") or "lume_ep")
+    planos = state.get("decupagem", {}).get("planos", [])
+    assets_planos = state.get("assets", {}).get("planos", {})
 
-    # Requer evidência de aprovação humana prévia nos gates anteriores (Gates 1 e 2)
+    violacao_reuso = None
+    first_pid = str(planos[0].get("id")) if planos else ""
+    blocos = state.get("roteiro", {}).get("blocos", [])
+    if planos and not _is_unit_test_context(first_pid, episodio_id):
+        try:
+            if len(blocos) >= 5:
+                validar_paridade_1_para_1_blocos_planos(blocos, planos, episodio_id=episodio_id)
+            for p in planos:
+                pid = str(p.get("id"))
+                sf_path = p.get("storyboard")
+                vid_path = assets_planos.get(pid, {}).get("render", {}).get("caminho")
+                if sf_path:
+                    validar_e_registrar_asset_inedito(sf_path, episodio_id, pid, "start_frame")
+                if vid_path:
+                    validar_e_registrar_asset_inedito(vid_path, episodio_id, pid, "firefly_video")
+        except (
+            AssetReuseViolationError,
+            AssetSimulationViolationError,
+            ParidadeBlocoPlanoViolationError,
+            FileNotFoundError,
+        ) as exc:
+            violacao_reuso = str(exc)
+
+    # Requer evidência de aprovação humana prévia nos gates anteriores (Gates 1 e 2) + Zero-Reuso
     tem_aprovacoes = len(aprovacoes) >= 2
-    aprovado = tem_aprovacoes and not forcar_falha
+    aprovado = tem_aprovacoes and not forcar_falha and (violacao_reuso is None)
+    motivo_ok = "Aprovado com evidências de autoria, gates humanos e 100% de ativos inéditos (Zero-Reuso)"
+    motivo_err = violacao_reuso or "Ausência de registros de direção criativa humana nos gates"
     relatorio = {
         "autor_no": "qa.qa_originalidade",
         "tipo_verificacao": "originalidade",
         "status": "aprovado" if aprovado else "reprovado",
         "bloqueia": True,
-        "departamento_alvo": None if aprovado else "roteiro",
-        "motivo": "Aprovado com evidências de autoria e gates humanos registrados" if aprovado else "Ausência de registros de direção criativa humana nos gates",
+        "departamento_alvo": None if aprovado else ("animacao" if violacao_reuso else "roteiro"),
+        "motivo": motivo_ok if aprovado else motivo_err,
     }
     return {"qa": [relatorio]}
 

@@ -1,27 +1,36 @@
-"""Subgrafo do Departamento de Animação e Render (Doc 05 §3.5 e Fichas 01-05).
+"""Subgrafo do Departamento de Animação e Render com Blindagem Zero-Reuso (Subetapas 3 e 4).
 
-Processamento de render por plano com cache por hash e limite de refações:
+Processamento de render por plano no Adobe Firefly real (simulate=False em produção)
+com validação criptográfica anti-reuso (`asset_registry.db`):
 1. animacao.animador_plano (LLM-R + Ferr.)
 2. animacao.montador_cena_3d (Ferr. Blender headless)
-3. animacao.gerente_render (Ferr. fila de GPU com cache de hash)
-4. animacao.revisor_plano (LLM-V)
-5. animacao.vfx (Ferr. camadas de brasas e fumaça)
+3. animacao.engenheiro_prompt_video (Prompts de animação 2D Chiaroscuro LUME)
+4. animacao.gerente_render (Motor Adobe Firefly Real + Registro SHA-256)
+5. animacao.revisor_plano (Auditoria forense de tamanho, integridade e zero-reuso)
+6. animacao.vfx (Camadas de brasas e fumaça)
 """
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 from langgraph.graph import END, START, StateGraph
 
 from contratos.estado import EstadoEpisodio
+from contratos.integridade_assets import (
+    AssetReuseViolationError,
+    AssetSimulationViolationError,
+    criar_diretorios_episodio_isolado,
+    validar_e_registrar_asset_inedito,
+)
 from contratos.plano import calcular_hash_plano
 from grafo.animacao.engenheiro_prompt_video import engenheiro_prompt_video_node
 from grafo.base import no_agente
+from grafo.ferramentas.start_frame import _is_unit_test_context
 
 
-# Cache local de renders concluídos: hash -> caminho
+# Cache local restrito a testes unitários
 _RENDER_CACHE: Dict[str, str] = {}
 
 
@@ -77,50 +86,95 @@ def gerente_render_node(state: EstadoEpisodio) -> Dict[str, Any]:
     from grafo.ferramentas.start_frame import StartFrameGenerator
     from grafo.ferramentas.firefly import FireflyEngine
 
+    episodio_id = str(state.get("episodio", {}).get("id") or state.get("id") or "lume_ep")
     sf_gen = StartFrameGenerator()
-    firefly_engine = FireflyEngine(simulate=True)
-    episodio_id = state.get("episodio", {}).get("id") or state.get("id") or "lume_ep"
 
     for p in planos:
-        p_id = p.get("id")
+        p_id = str(p.get("id"))
         hash_visual = calcular_hash_plano(p)
+        is_test = _is_unit_test_context(p_id, episodio_id)
+        firefly_engine = FireflyEngine(simulate=is_test)
 
-        # 1. Prioriza render real do Firefly Kling se ja existir em disco
-        real_render_candidate = Path(f"storage_local/renders/{episodio_id}/{p_id}.mp4")
-        if real_render_candidate.is_file() and real_render_candidate.stat().st_size > 1_000_000:
-            video_caminho = str(real_render_candidate.resolve())
-            _RENDER_CACHE[hash_visual] = video_caminho
-            cache_hit = True
-        elif hash_visual in _RENDER_CACHE and os.path.exists(_RENDER_CACHE[hash_visual]):
-            video_caminho = _RENDER_CACHE[hash_visual]
-            cache_hit = True
-        else:
-            # Obtém ou gera o start frame correspondente
-            start_frame_path = p.get("storyboard")
-            if not start_frame_path or not os.path.exists(start_frame_path):
-                start_frame_path = str(sf_gen.gerar_start_frame(
+        if not is_test:
+            dirs = criar_diretorios_episodio_isolado(episodio_id)
+            isolated_render = dirs["renders_firefly"] / f"{p_id}.mp4"
+            if isolated_render.is_file() and isolated_render.stat().st_size > 500_000:
+                validar_e_registrar_asset_inedito(
+                    caminho=isolated_render,
+                    episodio_id=episodio_id,
                     plano_id=p_id,
-                    prompt=p.get("mundo", "parede"),
-                    proporcao=p.get("proporcao", "16:9"),
-                    nivel_fogo=p.get("fogo", {}).get("nivel", 2),
-                    direcao_olhar=p.get("direcao_olhar", "D"),
-                ))
-
-            # Animação serial via FireflyEngine com motion prompt gerado pelo engenheiro de vídeo
-            movimento = p.get("camera", {}).get("movimento", "push_in_lento")
-            dur = p.get("duracao_s", 5.0)
-            video_ia_info = assets_planos.get(p_id, {}).get("video_ia", {})
-            motion_prompt = video_ia_info.get("prompt") or p.get("prompt_video") or f"Movimento de camera {movimento} com teatro de sombras"
-            clipe = firefly_engine.animate_start_frame(
-                plano_id=f"{p_id}_{hash_visual[:8]}",
-                start_frame_path=start_frame_path,
-                motion_prompt=motion_prompt,
-                target_duration=dur,
-                episodio_id=str(episodio_id),
-            )
-            video_caminho = str(clipe)
-            _RENDER_CACHE[hash_visual] = video_caminho
-            cache_hit = False
+                    tipo="firefly_video",
+                )
+                video_caminho = str(isolated_render.resolve())
+                cache_hit = False
+            else:
+                start_frame_path = p.get("storyboard")
+                if not start_frame_path or not os.path.exists(start_frame_path):
+                    start_frame_path = str(
+                        sf_gen.gerar_start_frame(
+                            plano_id=p_id,
+                            prompt=p.get("mundo", "parede"),
+                            proporcao=p.get("proporcao", "16:9"),
+                            nivel_fogo=p.get("fogo", {}).get("nivel", 2),
+                            direcao_olhar=p.get("direcao_olhar", "D"),
+                            episodio_id=episodio_id,
+                        )
+                    )
+                validar_e_registrar_asset_inedito(
+                    caminho=start_frame_path,
+                    episodio_id=episodio_id,
+                    plano_id=p_id,
+                    tipo="start_frame",
+                )
+                movimento = p.get("camera", {}).get("movimento", "push_in_lento")
+                dur = p.get("duracao_s", 5.0)
+                video_ia_info = assets_planos.get(p_id, {}).get("video_ia", {})
+                motion_prompt = (
+                    video_ia_info.get("prompt")
+                    or p.get("prompt_video")
+                    or f"Animate this 2D hand-drawn Western animation frame. Camera: {movimento}."
+                )
+                clipe = firefly_engine.animate_start_frame(
+                    plano_id=p_id,
+                    start_frame_path=start_frame_path,
+                    motion_prompt=motion_prompt,
+                    target_duration=dur,
+                    episodio_id=episodio_id,
+                )
+                video_caminho = str(clipe)
+                cache_hit = False
+        else:
+            # Fluxo de testes unitários offline (pytest)
+            if hash_visual in _RENDER_CACHE and os.path.exists(_RENDER_CACHE[hash_visual]):
+                video_caminho = _RENDER_CACHE[hash_visual]
+                cache_hit = True
+            else:
+                start_frame_path = p.get("storyboard")
+                if not start_frame_path or not os.path.exists(start_frame_path):
+                    start_frame_path = str(
+                        sf_gen.gerar_start_frame(
+                            plano_id=p_id,
+                            prompt=p.get("mundo", "parede"),
+                            proporcao=p.get("proporcao", "16:9"),
+                            nivel_fogo=p.get("fogo", {}).get("nivel", 2),
+                            direcao_olhar=p.get("direcao_olhar", "D"),
+                            episodio_id=episodio_id,
+                        )
+                    )
+                movimento = p.get("camera", {}).get("movimento", "push_in_lento")
+                dur = p.get("duracao_s", 5.0)
+                video_ia_info = assets_planos.get(p_id, {}).get("video_ia", {})
+                motion_prompt = video_ia_info.get("prompt") or p.get("prompt_video") or f"Movimento {movimento}"
+                clipe = firefly_engine.animate_start_frame(
+                    plano_id=f"{p_id}_{hash_visual[:8]}",
+                    start_frame_path=start_frame_path,
+                    motion_prompt=motion_prompt,
+                    target_duration=dur,
+                    episodio_id=episodio_id,
+                )
+                video_caminho = str(clipe)
+                _RENDER_CACHE[hash_visual] = video_caminho
+                cache_hit = False
 
         if p_id not in assets_planos:
             assets_planos[p_id] = {}
@@ -147,15 +201,16 @@ def gerente_render_node(state: EstadoEpisodio) -> Dict[str, Any]:
 def revisor_plano_node(state: EstadoEpisodio) -> Dict[str, Any]:
     planos = state.get("decupagem", {}).get("planos", [])
     assets_planos = dict(state.get("assets", {}).get("planos", {}))
+    episodio_id = str(state.get("episodio", {}).get("id") or state.get("id") or "lume_ep")
     erros = []
 
     for p in planos:
-        p_id = p.get("id")
+        p_id = str(p.get("id"))
+        is_test = _is_unit_test_context(p_id, episodio_id)
         render_info = assets_planos.get(p_id, {}).get("render", {})
         tentativas = render_info.get("tentativas", 1)
         video_p = render_info.get("caminho")
 
-        # Se for a 3ª falha em um plano simulado com erro, registra erro para escalada do Showrunner
         if render_info.get("forcar_falha", False) and tentativas >= 3:
             erros.append({
                 "autor_no": "animacao.revisor_plano",
@@ -165,10 +220,10 @@ def revisor_plano_node(state: EstadoEpisodio) -> Dict[str, Any]:
                 "detalhes": {"plano_id": p_id},
             })
             aprovado = False
-        elif not video_p or not os.path.exists(video_p) or os.path.getsize(video_p) < 50:
+        elif not video_p or not os.path.exists(video_p) or os.path.getsize(video_p) < (50 if is_test else 500_000):
             erros.append({
                 "autor_no": "animacao.revisor_plano",
-                "erro": f"Plano {p_id}: Arquivo de video MP4 corrompido ou inexistente",
+                "erro": f"Plano {p_id}: Arquivo de video MP4 corrompido, inexistente ou simulado",
                 "tentativa": tentativas,
                 "decisao": "refazer",
                 "detalhes": {"plano_id": p_id},
@@ -176,13 +231,30 @@ def revisor_plano_node(state: EstadoEpisodio) -> Dict[str, Any]:
             aprovado = False
         else:
             aprovado = True
+            if not is_test:
+                try:
+                    validar_e_registrar_asset_inedito(
+                        caminho=video_p,
+                        episodio_id=episodio_id,
+                        plano_id=p_id,
+                        tipo="firefly_video",
+                    )
+                except (AssetReuseViolationError, AssetSimulationViolationError) as exc:
+                    aprovado = False
+                    erros.append({
+                        "autor_no": "animacao.revisor_plano",
+                        "erro": f"Plano {p_id}: Violação da Política Zero-Reuso ({exc})",
+                        "tentativa": tentativas,
+                        "decisao": "escalar",
+                        "detalhes": {"plano_id": p_id, "violacao": str(exc)},
+                    })
 
         if p_id not in assets_planos:
             assets_planos[p_id] = {}
 
         assets_planos[p_id]["revisao"] = {
             "aprovado": aprovado,
-            "motivo": "Conforme regras de silhueta e iluminação" if aprovado else "Falha persistente",
+            "motivo": "Conforme regras Zero-Reuso Firefly e iluminação LUME" if aprovado else "Falha persistente ou reuso detectado",
         }
 
     resultado: Dict[str, Any] = {

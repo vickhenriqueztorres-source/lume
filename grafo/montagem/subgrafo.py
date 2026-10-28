@@ -1,9 +1,9 @@
-"""Subgrafo do Departamento de Montagem e Finalização (Doc 05 §3.7 e Fichas 01-04).
+"""Subgrafo do Departamento de Montagem e Finalização com Isolamento Zero-Reuso (Subetapa 5).
 
-Alinhamento da timeline, grafismos, master 4K e legendas:
+Alinhamento da timeline, grafismos, master 1080p/4K e legendas:
 1. montagem.editor (LLM-R + Ferr. OTIO)
 2. montagem.grafismo (Ferr. motion templates)
-3. montagem.finalizador (Ferr. ffmpeg master)
+3. montagem.finalizador (Ferr. ffmpeg master — exige clipes Firefly inéditos validados em produção)
 4. montagem.legendador (ASR + LLM-R)
 """
 
@@ -16,7 +16,14 @@ from typing import Any, Dict
 from langgraph.graph import END, START, StateGraph
 
 from contratos.estado import EstadoEpisodio
+from contratos.integridade_assets import (
+    AssetSimulationViolationError,
+    criar_diretorios_episodio_isolado,
+    validar_e_registrar_asset_inedito,
+    validar_paridade_1_para_1_blocos_planos,
+)
 from grafo.base import no_agente
+from grafo.ferramentas.start_frame import _is_unit_test_context
 
 
 @no_agente("montagem.editor", categoria_modelo="LLM-R")
@@ -51,26 +58,44 @@ def grafismo_node(state: EstadoEpisodio) -> Dict[str, Any]:
 
 @no_agente("montagem.finalizador", categoria_modelo=None)
 def finalizador_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    caminho_master = Path("storage_local/master/ep01_master_4k.mp4")
-    caminho_master.parent.mkdir(parents=True, exist_ok=True)
-
+    episodio_id = str(state.get("episodio", {}).get("id") or state.get("id") or "ep01")
     planos = state.get("decupagem", {}).get("planos", [])
+    first_pid = str(planos[0].get("id")) if planos else ""
+    is_test = _is_unit_test_context(first_pid, episodio_id)
+
+    if not is_test:
+        blocos = state.get("roteiro", {}).get("blocos", [])
+        if len(blocos) >= 5:
+            validar_paridade_1_para_1_blocos_planos(blocos, planos, episodio_id=episodio_id)
+        dirs = criar_diretorios_episodio_isolado(episodio_id)
+        caminho_master = dirs["master"] / f"{episodio_id}_master.mp4"
+    else:
+        caminho_master = Path("storage_local/master/ep01_master_4k.mp4")
+        caminho_master.parent.mkdir(parents=True, exist_ok=True)
+
     duracao_total = sum(p.get("duracao_s", 5.0) for p in planos)
 
-    # Coleta clipes renderizados dos planos
     clipes = []
     assets_planos = state.get("assets", {}).get("planos", {})
     for p in planos:
-        p_id = p.get("id")
+        p_id = str(p.get("id"))
         render_info = assets_planos.get(p_id, {}).get("render", {})
         caminho_clipe = render_info.get("caminho")
-        if caminho_clipe and Path(caminho_clipe).exists() and Path(caminho_clipe).stat().st_size > 500:
-            clipes.append(Path(caminho_clipe).resolve())
+        if caminho_clipe and Path(caminho_clipe).exists() and Path(caminho_clipe).stat().st_size > (500 if is_test else 500_000):
+            clipe_resolvido = Path(caminho_clipe).resolve()
+            if not is_test:
+                validar_e_registrar_asset_inedito(
+                    caminho=clipe_resolvido,
+                    episodio_id=episodio_id,
+                    plano_id=p_id,
+                    tipo="firefly_video",
+                )
+            clipes.append(clipe_resolvido)
 
     ffmpeg_bin = shutil.which("ffmpeg")
     gerou_real = False
     if ffmpeg_bin and len(clipes) == len(planos) and len(clipes) > 0:
-        concat_txt = caminho_master.parent / "concat_list.tmp.txt"
+        concat_txt = caminho_master.parent / f"concat_{episodio_id}.tmp.txt"
         with open(concat_txt, "w", encoding="utf-8") as f:
             for c in clipes:
                 f.write(f"file '{c.as_posix()}'\n")
@@ -83,7 +108,7 @@ def finalizador_node(state: EstadoEpisodio) -> Dict[str, Any]:
             str(caminho_master),
         ]
         try:
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
             if res.returncode == 0 and caminho_master.exists() and caminho_master.stat().st_size > 500:
                 gerou_real = True
         except Exception:
@@ -93,6 +118,12 @@ def finalizador_node(state: EstadoEpisodio) -> Dict[str, Any]:
                 concat_txt.unlink()
 
     if not gerou_real and not caminho_master.exists():
+        if not is_test:
+            raise AssetSimulationViolationError(
+                f"[BLOQUEIO MONTADOR MASTER] Impossível montar '{episodio_id}': "
+                f"esperados {len(planos)} clipes inéditos do Firefly, encontrados {len(clipes)}. "
+                f"É proibido gerar arquivo MP4 simulado em produção!"
+            )
         mp4_bytes = (
             b"\x00\x00\x00\x1cftypisom\x00\x00\x02\x00isomiso2mp41"
             b"\x00\x00\x00\x08free"
@@ -104,16 +135,16 @@ def finalizador_node(state: EstadoEpisodio) -> Dict[str, Any]:
     arquivo_master = {
         "caminho": str(caminho_master).replace("\\", "/"),
         "hash": f"hash_master_4k_{tamanho}",
-        "resolucao": "3840x2160",
+        "resolucao": "3840x2160" if is_test else "1920x1080",
         "fps": 24,
-        "codec": "ProRes_422_HQ_ou_H265",
+        "codec": "H264_Broadcast",
         "duracao_s": duracao_total,
     }
     capitulos = [
         {"timecode": "00:00", "titulo": "A Fogueira e o Cíclope"},
-        {"timecode": "06:00", "titulo": "O Vinho de Ísmaro"},
-        {"timecode": "13:00", "titulo": "Ninguém na Caverna"},
-        {"timecode": "19:00", "titulo": "A Fuga e a Maldição"},
+        {"timecode": "02:00", "titulo": "O Vinho de Ísmaro"},
+        {"timecode": "04:00", "titulo": "Ninguém na Caverna"},
+        {"timecode": "06:00", "titulo": "A Fuga e a Maldição"},
     ]
     return {
         "master": {
@@ -125,10 +156,15 @@ def finalizador_node(state: EstadoEpisodio) -> Dict[str, Any]:
 
 @no_agente("montagem.legendador", categoria_modelo="LLM-R")
 def legendador_node(state: EstadoEpisodio) -> Dict[str, Any]:
-    srt_pt = (
-        "1\n00:00:01,000 --> 00:00:05,000\nO fogo ainda conta as mesmas histórias.\n\n"
-        "2\n00:00:05,500 --> 00:00:10,000\nNa caverna escura, o gigante fecha a rocha.\n"
-    )
+    episodio_id = str(state.get("episodio", {}).get("id") or state.get("id") or "ep01")
+    isolated_srt = Path(f"D:/LUME/storage_local/episodios/{episodio_id}/legendas/{episodio_id}_pt.srt")
+    if isolated_srt.exists() and isolated_srt.stat().st_size > 100:
+        srt_pt = isolated_srt.read_text(encoding="utf-8")
+    else:
+        srt_pt = (
+            "1\n00:00:01,000 --> 00:00:05,000\nO fogo ainda conta as mesmas histórias.\n\n"
+            "2\n00:00:05,500 --> 00:00:10,000\nNa caverna escura, o gigante fecha a rocha.\n"
+        )
     return {
         "master": {
             "legendas": {

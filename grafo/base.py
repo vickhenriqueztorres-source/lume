@@ -88,12 +88,17 @@ def no_agente(
                 return resultado
 
             except Exception as e:
+                from contratos.integridade_assets import (
+                    AssetReuseViolationError,
+                    AssetSimulationViolationError,
+                )
                 # Registra erro no estado (append)
+                is_fatal = isinstance(e, (PermissionError, AssetReuseViolationError, AssetSimulationViolationError))
                 erro = ErroItem(
                     autor_no=agente_id,
                     erro=str(e),
                     tentativa=1,
-                    decisao="escalar" if isinstance(e, PermissionError) else "refazer",
+                    decisao="escalar" if is_fatal else "refazer",
                 ).model_dump()
                 return {
                     "erros": [erro],

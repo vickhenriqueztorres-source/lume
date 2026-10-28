@@ -23,9 +23,12 @@ categorias:
     mock_mode: true
 
   TTS:
-    provedor: "A_DEFINIR"
-    modelo: "fake-deterministic-tts"
-    voz: "contador-pt-br"
+    provedor: "GEMINI_TTS_FALLBACK"
+    modelo: "gemini-2.5-flash-preview-tts"
+    voz: "Charon"
+    api_keys:
+      - "ENV_GEMINI_API_KEY_1"
+      - "ENV_GEMINI_API_KEY_2"
     mock_mode: true
 
   ASR:

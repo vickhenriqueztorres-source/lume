@@ -14,6 +14,7 @@ from typing import Any, Dict, List
 from langgraph.graph import END, START, StateGraph
 
 from contratos.estado import EstadoEpisodio
+from contratos.integridade_assets import validar_paridade_1_para_1_blocos_planos
 from contratos.plano import Plano
 from grafo.base import no_agente
 from grafo.checkpointer import obter_store
@@ -21,14 +22,84 @@ from grafo.direcao.engenheiro_prompt_imagem import engenheiro_prompt_imagem_node
 from grafo.ferramentas.gerador_imagem_cli import gerador_imagem_cli_node
 
 
+def _inferir_tipo_plano(cena_tipo: str, mundo: str) -> str:
+    if mundo == "contador":
+        return "contador"
+    ct = cena_tipo.lower()
+    if any(k in ct for k in ("ciclope", "lestrigoes", "caribdis", "cila", "raio", "poseidon", "frota")):
+        return "escala"
+    if any(k in ct for k in ("dilema", "enigma", "cera", "mae", "argos", "arco", "vinho")):
+        return "close"
+    if any(k in ct for k in ("estaca", "odre", "vala", "corte")):
+        return "insert"
+    return "medio"
+
+
 @no_agente("direcao.diretor_decupagem", categoria_modelo="LLM-R")
 def diretor_decupagem_node(state: EstadoEpisodio) -> Dict[str, Any]:
+    episodio_id = str(state.get("episodio", {}).get("id", "ep01"))
     blocos = state.get("roteiro", {}).get("blocos", [])
     planos_existentes = state.get("decupagem", {}).get("planos")
+
     if planos_existentes:
+        if len(blocos) >= 5:
+            validar_paridade_1_para_1_blocos_planos(blocos, planos_existentes, episodio_id=episodio_id)
         return {
             "decupagem": {
                 "planos": planos_existentes,
+            }
+        }
+
+    # Regra Raiz 1:1: Quando o roteiro possui blocos reais (>= 5 blocos), CADA bloco gera exatamente 1 Plano Visual
+    if len(blocos) >= 5:
+        planos_1para1: List[Dict[str, Any]] = []
+        for idx, b in enumerate(blocos, start=1):
+            cena_tipo = str(b.get("cena_tipo", f"bloco_{idx:02d}"))
+            mundo = "contador" if "contador" in cena_tipo.lower() else "parede"
+            tipo_plano = _inferir_tipo_plano(cena_tipo, mundo)
+            if "janela_s" in b and isinstance(b["janela_s"], (list, tuple)) and len(b["janela_s"]) == 2:
+                dur_s = round(float(b["janela_s"][1]) - float(b["janela_s"][0]), 3)
+            else:
+                dur_s = float(b.get("tempo_estimado_s", 10.2))
+
+            p_dict = Plano(
+                id=f"p{idx:02d}",
+                bloco_roteiro=idx,
+                mundo=mundo,
+                tipo_plano=tipo_plano,
+                duracao_s=dur_s,
+                proporcao="16:9",
+                marionetes=[
+                    {"id": "odisseu_v1", "distancia_fogo": 0.7, "direcao": "dir"},
+                    {"id": "polifemo_v1", "distancia_fogo": 0.25, "direcao": "esq"},
+                ] if mundo == "parede" else [],
+                camera={"movimento": "push_in_lento", "lente_mm": 85 if mundo == "contador" else 35},
+                fogo={"nivel": 2 if mundo == "contador" else 3, "curva": "estavel", "tremulacao_hz": 2.0},
+                parede="ruina_calcario" if mundo == "contador" else "caverna_umida",
+            ).model_dump()
+
+            for extra_key in (
+                "ato_id",
+                "ato_titulo",
+                "janela_s",
+                "canto_verso",
+                "contador_perdas",
+                "paleta_modo",
+                "cena_tipo",
+                "texto_narracao",
+                "texto",
+                "prompt_start_frame",
+                "prompt_video",
+            ):
+                if extra_key in b:
+                    p_dict[extra_key] = b[extra_key]
+
+            planos_1para1.append(p_dict)
+
+        validar_paridade_1_para_1_blocos_planos(blocos, planos_1para1, episodio_id=episodio_id)
+        return {
+            "decupagem": {
+                "planos": planos_1para1,
             }
         }
 

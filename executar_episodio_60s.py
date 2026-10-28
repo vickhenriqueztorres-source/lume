@@ -108,6 +108,8 @@ def montar_video_master_60s(planos_paths: list[Path], audio_path: Path, output_p
         "-preset", "fast",
         "-crf", "18",
         "-c:a", "aac",
+        "-ac", "2",
+        "-ar", "48000",
         "-b:a", "320k",
         "-t", "60.0",
         str(output_path),
